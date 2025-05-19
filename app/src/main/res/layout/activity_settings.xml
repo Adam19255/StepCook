@@ -119,7 +119,8 @@
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp">
 
                     <ImageView
                         android:id="@+id/autoPlayNextStepIcon"
@@ -148,6 +149,75 @@
                         android:layout_centerVertical="true"
                         android:switchMinWidth="50dp"
                         android:theme="@style/nextStepSwitch"/>
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/voiceSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp">
+
+                    <ImageView
+                        android:id="@+id/voiceIcon"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_centerVertical="true"
+                        android:contentDescription="@string/voice_settings"
+                        android:src="@drawable/voice_svg"
+                        android:background="@drawable/round_voice_background"
+                        android:padding="12dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:text="@string/voice_settings"
+                        android:textColor="@color/black"
+                        android:layout_toEndOf="@+id/voiceIcon"
+                        android:layout_marginStart="15dp"/>
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/right_arrow"
+                        android:src="@drawable/right_arrow"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"/>
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/timerSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/timerIcon"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_centerVertical="true"
+                        android:contentDescription="@string/timer_settings"
+                        android:src="@drawable/timer_black"
+                        android:background="@drawable/round_timer_background"
+                        android:padding="12dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:text="@string/timer_settings"
+                        android:textColor="@color/black"
+                        android:layout_toEndOf="@+id/timerIcon"
+                        android:layout_marginStart="15dp"/>
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/right_arrow"
+                        android:src="@drawable/right_arrow"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"/>
 
                 </RelativeLayout>
 

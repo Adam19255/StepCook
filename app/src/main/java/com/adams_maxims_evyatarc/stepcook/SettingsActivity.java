@@ -20,6 +20,8 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
     private AppCompatButton editProfileButton;
     private SwitchCompat notificationSwitch;
     private SwitchCompat autoPlayNextStepSwitch;
+    private RelativeLayout voiceSettings;
+    private RelativeLayout timerSettings;
     private RelativeLayout aboutUsButton;
     private RelativeLayout logoutButton;
     private TextView userNameTextView;
@@ -42,6 +44,8 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
         editProfileButton = findViewById(R.id.editProfileButton);
         notificationSwitch = findViewById(R.id.notificationSwitch);
         autoPlayNextStepSwitch = findViewById(R.id.autoPlayNextStepSwitch);
+        voiceSettings = findViewById(R.id.voiceSettings);
+        timerSettings = findViewById(R.id.timerSettings);
         aboutUsButton = findViewById(R.id.aboutUsButton);
         logoutButton = findViewById(R.id.logoutButton);
         userNameTextView = findViewById(R.id.userNameTextView);
@@ -67,6 +71,10 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
         autoPlayNextStepSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             updateUserPreference("autoPlayNextStep", isChecked);
         });
+
+        voiceSettings.setOnClickListener(v -> Toast.makeText(this, "Voice settings not implemented yet", Toast.LENGTH_SHORT).show());
+
+        timerSettings.setOnClickListener(v -> Toast.makeText(this, "Timer settings not implemented yet", Toast.LENGTH_SHORT).show());
 
         aboutUsButton.setOnClickListener(v -> dialogManager.showAboutDialog());
 

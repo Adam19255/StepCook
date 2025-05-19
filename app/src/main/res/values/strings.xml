@@ -25,6 +25,7 @@
     <string name="add_recipe">Add Recipe</string>
     <string name="popup">Popup Menu</string>
     <string name="about">About Us</string>
+    <string name="voice_settings">Voice Settings</string>
     <string name="app_info">App Information</string>
     <string name="exit">Exit</string>
     <string name="settings">Settings</string>
@@ -38,6 +39,7 @@
     <string name="new_recipe_title">New Recipe Title</string>
     <string name="step_description">Step Description</string>
     <string name="notifications">Notifications</string>
+    <string name="timer_settings">Timer Settings</string>
     <string name="next_step">Auto play next step</string>
     <string name="logout">Log Out</string>
     <string name="right_arrow">Right Arrow</string>
