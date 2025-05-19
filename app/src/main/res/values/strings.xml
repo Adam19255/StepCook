@@ -1,3 +1,93 @@
 <resources>
-    <string name="app_name">Step Cook</string>
+    <string name="app_name">Step-Cook</string>
+    <string name="creators">Creators</string>
+    <string name="submitters">Adam Shay, Maxim Shteingard, Evyatar Ben Chyun</string>
+    <string name="adam">Adam Shay - 208917963</string>
+    <string name="maxim">Maxim Shteingard - 209171156</string>
+    <string name="evyatar">Evyatar Ben Chyun - 315301606</string>
+    <string name="submission_date">Submission Date</string>
+    <string name="date">TBD</string>
+    <string name="submission_with_date">Submission Date: TBD</string>
+    <string name="ok_button">OK</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="save">Save</string>
+    <string name="application_id_format">Application ID: %s</string>
+    <string name="version_format">Version: %s</string>
+    <string name="os_info_format">OS Information: %s</string>
+    <string name="logo">logo</string>
+    <string name="login_text">Login</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="signup_text">Not yet registered? Signup Now</string>
+    <string name="register_text">Signup</string>
+    <string name="username_hint">Name</string>
+    <string name="confirm_password_hint">Confirm Password</string>
+    <string name="add_recipe">Add Recipe</string>
+    <string name="popup">Popup Menu</string>
+    <string name="about">About Us</string>
+    <string name="app_info">App Information</string>
+    <string name="exit">Exit</string>
+    <string name="settings">Settings</string>
+    <string name="back_button">Back Button</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="edit_name">Edit Name</string>
+    <string name="change_password">Change Password</string>
+    <string name="current_password">Current Password</string>
+    <string name="new_password">New Password</string>
+    <string name="settings_logo">Settings Logo</string>
+    <string name="new_recipe_title">New Recipe Title</string>
+    <string name="step_description">Step Description</string>
+    <string name="notifications">Notifications</string>
+    <string name="next_step">Auto play next step</string>
+    <string name="logout">Log Out</string>
+    <string name="right_arrow">Right Arrow</string>
+    <string name="filter">Filter</string>
+    <string name="difficulty_filter">Difficulty</string>
+    <string name="show_all">Show all</string>
+    <string name="easy_difficulty">Easy difficulty</string>
+    <string name="medium_difficulty">Medium difficulty</string>
+    <string name="hard_difficulty">Hard difficulty</string>
+    <string name="favorite_filter">Favorites</string>
+    <string name="cook_time_filter">Cook Time</string>
+    <string name="fast_cook_time">Less than 30 minutes</string>
+    <string name="medium_cook_time">30 – 60 minutes</string>
+    <string name="long_cook_time">More than 60 minutes</string>
+    <string name="my_recipes_filter">My Recipes</string>
+    <string name="search">Search</string>
+    <string name="hide">Hide button</string>
+    <string name="timer_icon">Set Timer</string>
+    <string name="recipe_title">Recipe Title</string>
+    <string name="select_recipe_difficulty">Select recipe difficulty</string>
+
+    <string-array name="difficulties">
+        <item>Easy</item>
+        <item>Medium</item>
+        <item>Hard</item>
+    </string-array>
+
+    <string name="image_placeholder">Image Placeholder</string>
+    <string name="image_source">Choose Image Source</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="camera">Camera</string>
+    <string name="gallery">Gallery</string>
+    <string name="choose_from_gallery">Choose from Gallery</string>
+    <string name="delete">Delete</string>
+    <string name="delete_image">Delete Uploaded Image</string>
+    <string name="remove_step">Remove Step</string>
+    <string name="save_recipe">Save Recipe</string>
+    <string name="saving">Saving recipe…</string>
+    <string name="close_button">Close Button</string>
+    <string name="set_timer">Set Timer</string>
+    <string name="hours">Hours</string>
+    <string name="minutes">Minutes</string>
+    <string name="set">Set</string>
+    <string name="cook_time_format">Cook time: %1$s</string>
+    <string name="recipe_time">%1$s</string>
+    <string name="recipe_difficulty">%2$s</string>
+    <string name="text_divider"> | </string>
+    <string name="loading_recipes">Loading recipes…</string>
+    <string name="author">Author</string>
+    <string name="upload_time">Upload Time</string>
+    <string name="play_button">Play Button</string>
+    <string name="steps">Steps</string>
 </resources>

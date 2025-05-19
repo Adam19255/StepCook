@@ -1,0 +1,38 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layoutDirection="ltr"
+    android:textDirection="ltr"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/timerIcon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/timer"
+        android:contentDescription="@string/timer_icon"
+        android:onClick="clickTimer"
+        android:layout_gravity="center_vertical"/>
+
+    <EditText
+        android:id="@+id/stepDetail"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/step_description"
+        android:inputType="textCapSentences"
+        android:background="@drawable/custom_input"
+        android:padding="10dp" />
+
+    <ImageView
+        android:id="@+id/removeStepButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/white_minus_svg"
+        android:layout_gravity="center_vertical"
+        android:contentDescription="@string/remove_step"
+        android:background="@drawable/round_logout_background"
+        android:layout_marginStart="2dp"/>
+
+</LinearLayout>

@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="primary">#45EB832B</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="orange">#eb832b</color>
+    <color name="gray">#BCBCBC</color>
+    <color name="notifications">#13B2C3</color>
+    <color name="about">#E6A326</color>
+    <color name="next_step">#64E2B7</color>
+    <color name="logout">#D84040</color>
 </resources>
