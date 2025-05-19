@@ -33,6 +33,18 @@ public class EditProfileDialog {
     private FirebaseFirestore db;
     private String currentUserName;
 
+    // Interface for profile update callbacks
+    public interface ProfileUpdateListener {
+        void onProfileUpdated();
+    }
+
+    private ProfileUpdateListener updateListener;
+
+    // Method to set the update listener
+    public void setProfileUpdateListener(ProfileUpdateListener listener) {
+        this.updateListener = listener;
+    }
+
     public EditProfileDialog(Context context) {
         this.context = context;
         auth = FirebaseAuth.getInstance();
@@ -156,6 +168,10 @@ public class EditProfileDialog {
                                         updateUserName(user.getUid(), newUserName);
                                     } else {
                                         dialog.dismiss();
+                                        // Notify listener of profile update (password only)
+                                        if (updateListener != null) {
+                                            updateListener.onProfileUpdated();
+                                        }
                                     }
                                 })
                                 .addOnFailureListener(e -> {
@@ -183,6 +199,11 @@ public class EditProfileDialog {
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(context, "Username updated successfully", Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
+
+                    // Notify listener of profile update
+                    if (updateListener != null) {
+                        updateListener.onProfileUpdated();
+                    }
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(context, "Failed to update username: " + e.getMessage(), Toast.LENGTH_SHORT).show();

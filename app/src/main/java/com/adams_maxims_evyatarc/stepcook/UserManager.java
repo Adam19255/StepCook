@@ -83,6 +83,13 @@ public class UserManager {
     }
 
     /**
+     * Invalidate the current user cache to force a fresh load from Firestore
+     */
+    public void invalidateUserCache() {
+        currentUser = null;
+    }
+
+    /**
      * Load user data from Firestore
      * @param callback Callback to receive the loaded user or error
      */

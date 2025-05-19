@@ -16,7 +16,7 @@ import androidx.core.content.ContextCompat;
 /**
  * Class to manage dialogs in the application with simplified camera handling
  */
-public class DialogManager {
+public class DialogManager implements EditProfileDialog.ProfileUpdateListener {
     private Context context;
     public static final int REQUEST_IMAGE_CAPTURE = 1;
     public static final int REQUEST_PICK_IMAGE = 2;
@@ -24,6 +24,7 @@ public class DialogManager {
     public static final int REQUEST_STORAGE_PERMISSION = 101;
 
     private ImageDeleteListener imageDeleteListener;
+    private ProfileUpdateListener profileUpdateListener;
 
     public DialogManager(Context context) {
         this.context = context;
@@ -33,12 +34,29 @@ public class DialogManager {
         void onImageDeleted();
     }
 
+    public interface ProfileUpdateListener {
+        void onProfileUpdated();
+    }
+
     public void setImageDeleteListener(ImageDeleteListener listener) {
         this.imageDeleteListener = listener;
     }
 
+    public void setProfileUpdateListener(ProfileUpdateListener listener) {
+        this.profileUpdateListener = listener;
+    }
+
+    @Override
+    public void onProfileUpdated() {
+        // Forward the update notification to the registered listener
+        if (profileUpdateListener != null) {
+            profileUpdateListener.onProfileUpdated();
+        }
+    }
+
     public void showEditProfileDialog(){
         EditProfileDialog dialog = new EditProfileDialog(context);
+        dialog.setProfileUpdateListener(this);
         dialog.show();
     }
 

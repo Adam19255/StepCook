@@ -14,7 +14,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.appcompat.widget.SwitchCompat;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends AppCompatActivity implements DialogManager.ProfileUpdateListener {
     private static final String TAG = "SettingsActivity";
     private ImageView backButton;
     private AppCompatButton editProfileButton;
@@ -50,6 +50,9 @@ public class SettingsActivity extends AppCompatActivity {
         userManager = UserManager.getInstance();
         dialogManager = new DialogManager(this);
 
+        // Register this activity as the profile update listener
+        dialogManager.setProfileUpdateListener(this);
+
         // Load user data
         loadUserData();
 
@@ -78,6 +81,18 @@ public class SettingsActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    @Override
+    public void onProfileUpdated() {
+        // Refresh user data when profile is updated
+        refreshUserData();
+    }
+
+    private void refreshUserData() {
+        // Clear cached user data and reload from Firestore
+        userManager.invalidateUserCache();
+        loadUserData();
     }
 
     private void loadUserData() {
