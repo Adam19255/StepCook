@@ -10,7 +10,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -24,9 +23,6 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Force Light Mode
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 

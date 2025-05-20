@@ -20,7 +20,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
 
 public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.OnTimeSetListener, DialogManager.ImageDeleteListener {
 
@@ -43,9 +42,6 @@ public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Force Light Mode
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_recipe);
 

@@ -6,8 +6,6 @@
     android:padding="16dp"
     android:layout_margin="8dp"
     android:elevation="4dp"
-    android:layoutDirection="ltr"
-    android:textDirection="ltr"
     android:background="@drawable/card_background">
 
     <ImageView
