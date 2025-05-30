@@ -25,6 +25,7 @@ import java.util.Locale;
 public class RecipeDetailActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
+    private UserManager userManager = UserManager.getInstance();
     private String recipeId;
     private Recipe currentRecipe;
 
@@ -62,12 +63,26 @@ public class RecipeDetailActivity extends AppCompatActivity {
             return;
         }
 
+
+        userManager.loadUserData(new UserManager.UserDataCallback() {
+            @Override
+            public void onUserDataLoaded(User user) {
+                isAutoPlaying = user.isAutoPlayNextStep(); // ✅ Update autoplay based on Firestore
+                Log.d("RecipeDebug", "Autoplay from user profile: " + isAutoPlaying);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e("RecipeDebug", "Failed to load user data: " + e.getMessage());
+                Toast.makeText(RecipeDetailActivity.this, "Failed to load user settings", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
         initializeViews();
         setupListeners();
         loadRecipeDetails();
         initializeTextToSpeech();
-
-
     }
 
     private void initializeViews() {
