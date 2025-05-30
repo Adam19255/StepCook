@@ -17,6 +17,10 @@
             <action android:name="android.intent.action.OPEN_DOCUMENT" />
             <data android:mimeType="image/*" />
         </intent>
+        <!-- TTS-->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <uses-feature

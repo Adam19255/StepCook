@@ -1,6 +1,9 @@
 package com.adams_maxims_evyatarc.stepcook;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -14,6 +17,7 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Activity to display the details of a selected recipe
@@ -37,6 +41,12 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
     private boolean isActive = false;
 
+    private TextToSpeech textToSpeech;
+    private int currentStepIndex = 0;
+    private boolean isAutoPlaying = false;
+    private Handler handler = new Handler();
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,6 +65,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
         initializeViews();
         setupListeners();
         loadRecipeDetails();
+        initializeTextToSpeech();
+
+
     }
 
     private void initializeViews() {
@@ -78,7 +91,45 @@ public class RecipeDetailActivity extends AppCompatActivity {
             toggleFavorite(isActive);
         });
 
-        playButton.setOnClickListener(v -> Toast.makeText(this, "Play button clicked", Toast.LENGTH_SHORT).show());
+//        playButton.setOnClickListener(v -> Toast.makeText(this, "Play button clicked", Toast.LENGTH_SHORT).show());
+        playButton.setOnClickListener(v -> {
+            Toast.makeText(this, "Play button clicked", Toast.LENGTH_SHORT).show();
+            List<Recipe.Step> steps = currentRecipe.getSteps();
+
+            Log.d("RecipeDebug", "Total steps: " + steps.size());
+
+            for (int i = 0; i < steps.size(); i++) {
+                Recipe.Step s = steps.get(i);
+                Log.d("RecipeDebug", "Step " + i + ": " + s.getDescription() + " | Timer: " + s.getTimerMinutes());
+            }
+
+            if (currentStepIndex < steps.size()) {
+                Recipe.Step step = steps.get(currentStepIndex);
+                Log.d("RecipeDebug", "Current step: " + step.getDescription()); // ✅ Fixed
+                playStep(step);
+            } else {
+                Toast.makeText(this, "All steps completed", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void playStep(Recipe.Step step) {
+        String description = step.getDescription();
+        textToSpeech.speak(description, TextToSpeech.QUEUE_FLUSH, null, null);
+
+        Integer timer = step.getTimerMinutes();
+        long delayMillis = timer != null ? timer * 60L * 1000L : 0;
+
+        if (isAutoPlaying && delayMillis > 0) {
+            handler.postDelayed(() -> {
+                currentStepIndex++;
+                if (currentStepIndex < currentRecipe.getSteps().size()) {
+                    playStep(currentRecipe.getSteps().get(currentStepIndex));
+                }
+            }, delayMillis);
+        } else {
+            currentStepIndex++; // Increment, but wait for user to click play again
+        }
     }
 
     private void loadRecipeDetails() {
@@ -121,6 +172,19 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
 
         displayRecipeSteps();
+    }
+
+    private void initializeTextToSpeech() {
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int result = textToSpeech.setLanguage(Locale.getDefault());
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Toast.makeText(this, "TTS language not supported", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "TTS initialization failed", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void displayRecipeSteps() {
@@ -174,5 +238,13 @@ public class RecipeDetailActivity extends AppCompatActivity {
         else {
             favoriteButton.setImageResource(R.drawable.favorite_unpressed_svg);
         }
+    }
+
+    protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+        }
+        super.onDestroy();
     }
 }
