@@ -1,6 +1,7 @@
 package com.adams_maxims_evyatarc.stepcook;
 
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
@@ -19,9 +20,6 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Activity to display the details of a selected recipe
- */
 public class RecipeDetailActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
@@ -39,6 +37,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private ImageView backButton;
     private ImageView favoriteButton;
     private ImageView playButton;
+    private TextView countdownTextView;
 
     private boolean isActive = false;
 
@@ -46,7 +45,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private int currentStepIndex = 0;
     private boolean isAutoPlaying = false;
     private Handler handler = new Handler();
-
+    private CountDownTimer countDownTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +54,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
         db = FirebaseFirestore.getInstance();
 
-        // Get recipe ID from intent
         recipeId = getIntent().getStringExtra("RECIPE_ID");
         if (recipeId == null) {
             Toast.makeText(this, "Recipe not found", Toast.LENGTH_SHORT).show();
@@ -63,11 +61,10 @@ public class RecipeDetailActivity extends AppCompatActivity {
             return;
         }
 
-
         userManager.loadUserData(new UserManager.UserDataCallback() {
             @Override
             public void onUserDataLoaded(User user) {
-                isAutoPlaying = user.isAutoPlayNextStep(); // ✅ Update autoplay based on Firestore
+                isAutoPlaying = user.isAutoPlayNextStep();
                 Log.d("RecipeDebug", "Autoplay from user profile: " + isAutoPlaying);
             }
 
@@ -77,7 +74,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 Toast.makeText(RecipeDetailActivity.this, "Failed to load user settings", Toast.LENGTH_SHORT).show();
             }
         });
-
 
         initializeViews();
         setupListeners();
@@ -96,6 +92,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         backButton = findViewById(R.id.backButton);
         favoriteButton = findViewById(R.id.favoriteButton);
         playButton = findViewById(R.id.playButton);
+        countdownTextView = findViewById(R.id.countdownTextView);
     }
 
     private void setupListeners() {
@@ -106,21 +103,11 @@ public class RecipeDetailActivity extends AppCompatActivity {
             toggleFavorite(isActive);
         });
 
-//        playButton.setOnClickListener(v -> Toast.makeText(this, "Play button clicked", Toast.LENGTH_SHORT).show());
         playButton.setOnClickListener(v -> {
-            Toast.makeText(this, "Play button clicked", Toast.LENGTH_SHORT).show();
             List<Recipe.Step> steps = currentRecipe.getSteps();
-
-            Log.d("RecipeDebug", "Total steps: " + steps.size());
-
-            for (int i = 0; i < steps.size(); i++) {
-                Recipe.Step s = steps.get(i);
-                Log.d("RecipeDebug", "Step " + i + ": " + s.getDescription() + " | Timer: " + s.getTimerMinutes());
-            }
 
             if (currentStepIndex < steps.size()) {
                 Recipe.Step step = steps.get(currentStepIndex);
-                Log.d("RecipeDebug", "Current step: " + step.getDescription()); // ✅ Fixed
                 playStep(step);
             } else {
                 Toast.makeText(this, "All steps completed", Toast.LENGTH_SHORT).show();
@@ -135,16 +122,45 @@ public class RecipeDetailActivity extends AppCompatActivity {
         Integer timer = step.getTimerMinutes();
         long delayMillis = timer != null ? timer * 60L * 1000L : 0;
 
+        if (delayMillis > 0) {
+            Toast.makeText(this, "Timer: " + step.getFormattedTime(), Toast.LENGTH_SHORT).show();
+            startCountdown(delayMillis);
+        } else {
+            countdownTextView.setText("");
+        }
+
         if (isAutoPlaying && delayMillis > 0) {
             handler.postDelayed(() -> {
                 currentStepIndex++;
                 if (currentStepIndex < currentRecipe.getSteps().size()) {
                     playStep(currentRecipe.getSteps().get(currentStepIndex));
+                } else {
+                    countdownTextView.setText("");
                 }
             }, delayMillis);
         } else {
-            currentStepIndex++; // Increment, but wait for user to click play again
+            currentStepIndex++;
         }
+    }
+
+    private void startCountdown(long millis) {
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+
+        countDownTimer = new CountDownTimer(millis, 1000) {
+            public void onTick(long millisUntilFinished) {
+                long seconds = millisUntilFinished / 1000;
+                long minutes = seconds / 60;
+                long remSeconds = seconds % 60;
+                countdownTextView.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, remSeconds));
+            }
+
+            public void onFinish() {
+                countdownTextView.setText("");
+            }
+        };
+        countDownTimer.start();
     }
 
     private void loadRecipeDetails() {
@@ -156,8 +172,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 if (currentRecipe != null){
                     currentRecipe.setId(documentSnapshot.getId());
                 }
-
-                // Display the recipe details
                 displayRecipeDetails();
             } else {
                 Toast.makeText(this, "Recipe not found", Toast.LENGTH_SHORT).show();
@@ -176,7 +190,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
         recipeAuthor.setText(currentRecipe.getAuthorName());
         recipeDate.setText(currentRecipe.getFormattedDate());
 
-        // Load image if available
         if (currentRecipe.getImageUrl() != null && !currentRecipe.getImageUrl().isEmpty()) {
             Glide.with(this)
                     .load(currentRecipe.getImageUrl())
@@ -187,6 +200,59 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
 
         displayRecipeSteps();
+    }
+
+    private void displayRecipeSteps() {
+        stepsContainer.removeAllViews();
+        List<Recipe.Step> steps = currentRecipe.getSteps();
+
+        if (steps != null && !steps.isEmpty()) {
+            for (int i = 0; i < steps.size(); i++) {
+                Recipe.Step step = steps.get(i);
+                View stepView = getLayoutInflater().inflate(R.layout.recipe_step_item, stepsContainer, false);
+
+                TextView stepNumber = stepView.findViewById(R.id.stepNumber);
+                TextView stepDescription = stepView.findViewById(R.id.stepDescription);
+                TextView stepTimer = stepView.findViewById(R.id.stepTimer);
+
+                stepNumber.setText(String.valueOf(step.getOrder()));
+                stepDescription.setText(step.getDescription());
+
+                String formattedTime = step.getFormattedTime();
+                if (!formattedTime.isEmpty()) {
+                    stepTimer.setVisibility(View.VISIBLE);
+                    stepTimer.setText(formattedTime);
+                } else {
+                    stepTimer.setVisibility(View.GONE);
+                }
+
+                stepsContainer.addView(stepView);
+            }
+        } else {
+            TextView noSteps = new TextView(this);
+            noSteps.setText("No steps available for this recipe");
+            noSteps.setPadding(16, 16, 16, 16);
+            stepsContainer.addView(noSteps);
+        }
+    }
+
+    private void toggleFavorite(boolean isActive){
+        favoriteButton.setImageResource(isActive ?
+                R.drawable.favorite_pressed_svg :
+                R.drawable.favorite_unpressed_svg
+        );
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+        }
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+        super.onDestroy();
     }
 
     private void initializeTextToSpeech() {
@@ -200,66 +266,5 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "TTS initialization failed", Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void displayRecipeSteps() {
-        // Clear existing steps first
-        stepsContainer.removeAllViews();
-
-        // Get steps from the recipe
-        List<Recipe.Step> steps = currentRecipe.getSteps();
-
-        if (steps != null && !steps.isEmpty()) {
-            for (int i = 0; i < steps.size(); i++) {
-                Recipe.Step step = steps.get(i);
-
-                // Inflate the step layout
-                View stepView = getLayoutInflater().inflate(R.layout.recipe_step_item, stepsContainer, false);
-
-                // Find views in the step layout
-                TextView stepNumber = stepView.findViewById(R.id.stepNumber);
-                TextView stepDescription = stepView.findViewById(R.id.stepDescription);
-                TextView stepTimer = stepView.findViewById(R.id.stepTimer);
-
-                // Set the step content
-                stepNumber.setText(String.valueOf(step.getOrder()));
-                stepDescription.setText(step.getDescription());
-
-                // Show timer if available
-                String formattedTime = step.getFormattedTime();
-                if (!formattedTime.isEmpty()) {
-                    stepTimer.setVisibility(View.VISIBLE);
-                    stepTimer.setText(formattedTime);
-                } else {
-                    stepTimer.setVisibility(View.GONE);
-                }
-
-                // Add the step view to the container
-                stepsContainer.addView(stepView);
-            }
-        } else {
-            // If no steps, show a message
-            TextView noSteps = new TextView(this);
-            noSteps.setText("No steps available for this recipe");
-            noSteps.setPadding(16, 16, 16, 16);
-            stepsContainer.addView(noSteps);
-        }
-    }
-
-    private void toggleFavorite(boolean isActive){
-        if (isActive){
-            favoriteButton.setImageResource(R.drawable.favorite_pressed_svg);
-        }
-        else {
-            favoriteButton.setImageResource(R.drawable.favorite_unpressed_svg);
-        }
-    }
-
-    protected void onDestroy() {
-        if (textToSpeech != null) {
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-        }
-        super.onDestroy();
     }
 }
