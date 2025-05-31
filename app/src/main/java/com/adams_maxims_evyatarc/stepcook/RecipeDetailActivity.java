@@ -37,7 +37,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private ImageView backButton;
     private ImageView favoriteButton;
     private ImageView playButton;
-    private TextView countdownTextView;
+//    private TextView countdownTextView;
+    private TextView currentStepTimerTextView;
+
 
     private boolean isActive = false;
 
@@ -92,7 +94,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         backButton = findViewById(R.id.backButton);
         favoriteButton = findViewById(R.id.favoriteButton);
         playButton = findViewById(R.id.playButton);
-        countdownTextView = findViewById(R.id.countdownTextView);
+//        countdownTextView = findViewById(R.id.countdownTextView);
     }
 
     private void setupListeners() {
@@ -122,11 +124,12 @@ public class RecipeDetailActivity extends AppCompatActivity {
         Integer timer = step.getTimerMinutes();
         long delayMillis = timer != null ? timer * 60L * 1000L : 0;
 
-        if (delayMillis > 0) {
-            Toast.makeText(this, "Timer: " + step.getFormattedTime(), Toast.LENGTH_SHORT).show();
-            startCountdown(delayMillis);
-        } else {
-            countdownTextView.setText("");
+        // Locate current step view and timer field
+        View currentStepView = stepsContainer.findViewWithTag("step_" + currentStepIndex);
+        currentStepTimerTextView = currentStepView != null ? currentStepView.findViewById(R.id.stepTimer) : null;
+
+        if (delayMillis > 0 && currentStepTimerTextView != null) {
+            startInlineCountdown(delayMillis);
         }
 
         if (isAutoPlaying && delayMillis > 0) {
@@ -134,8 +137,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 currentStepIndex++;
                 if (currentStepIndex < currentRecipe.getSteps().size()) {
                     playStep(currentRecipe.getSteps().get(currentStepIndex));
-                } else {
-                    countdownTextView.setText("");
                 }
             }, delayMillis);
         } else {
@@ -143,7 +144,8 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
     }
 
-    private void startCountdown(long millis) {
+
+    private void startInlineCountdown(long millis) {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
@@ -153,15 +155,23 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 long seconds = millisUntilFinished / 1000;
                 long minutes = seconds / 60;
                 long remSeconds = seconds % 60;
-                countdownTextView.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, remSeconds));
+
+                if (currentStepTimerTextView != null) {
+                    currentStepTimerTextView.setText(
+                            String.format(Locale.getDefault(), "%02d:%02d", minutes, remSeconds)
+                    );
+                }
             }
 
             public void onFinish() {
-                countdownTextView.setText("");
+                if (currentStepTimerTextView != null) {
+                    currentStepTimerTextView.setText(""); // Clear or show "Done"
+                }
             }
         };
         countDownTimer.start();
     }
+
 
     private void loadRecipeDetails() {
         DocumentReference recipeRef = db.collection("Recipes").document(recipeId);
@@ -218,6 +228,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 stepNumber.setText(String.valueOf(step.getOrder()));
                 stepDescription.setText(step.getDescription());
 
+                // Show initial timer as static value (e.g. 5m)
                 String formattedTime = step.getFormattedTime();
                 if (!formattedTime.isEmpty()) {
                     stepTimer.setVisibility(View.VISIBLE);
@@ -226,8 +237,11 @@ public class RecipeDetailActivity extends AppCompatActivity {
                     stepTimer.setVisibility(View.GONE);
                 }
 
+                // Save tag so we can find it by index later
+                stepView.setTag("step_" + i);
                 stepsContainer.addView(stepView);
             }
+
         } else {
             TextView noSteps = new TextView(this);
             noSteps.setText("No steps available for this recipe");
