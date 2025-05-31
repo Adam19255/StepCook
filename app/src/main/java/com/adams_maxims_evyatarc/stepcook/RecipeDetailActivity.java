@@ -54,8 +54,10 @@ public class RecipeDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recipe_detail);
 
+        // initialize firebase
         db = FirebaseFirestore.getInstance();
 
+        // get the passed recipe ID
         recipeId = getIntent().getStringExtra("RECIPE_ID");
         if (recipeId == null) {
             Toast.makeText(this, "Recipe not found", Toast.LENGTH_SHORT).show();
@@ -63,6 +65,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
             return;
         }
 
+        // Load user settings
         userManager.loadUserData(new UserManager.UserDataCallback() {
             @Override
             public void onUserDataLoaded(User user) {
@@ -94,9 +97,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
         backButton = findViewById(R.id.backButton);
         favoriteButton = findViewById(R.id.favoriteButton);
         playButton = findViewById(R.id.playButton);
-//        countdownTextView = findViewById(R.id.countdownTextView);
     }
 
+    // Handle clicks
     private void setupListeners() {
         backButton.setOnClickListener(v -> finish());
 
@@ -117,6 +120,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         });
     }
 
+    // Play current step using TextToSpeech and countdown timer
     private void playStep(Recipe.Step step) {
         String description = step.getDescription();
         textToSpeech.speak(description, TextToSpeech.QUEUE_FLUSH, null, null);
@@ -128,10 +132,12 @@ public class RecipeDetailActivity extends AppCompatActivity {
         View currentStepView = stepsContainer.findViewWithTag("step_" + currentStepIndex);
         currentStepTimerTextView = currentStepView != null ? currentStepView.findViewById(R.id.stepTimer) : null;
 
+        // Start countdown timer if there's a duration
         if (delayMillis > 0 && currentStepTimerTextView != null) {
             startInlineCountdown(delayMillis);
         }
 
+        // Enable autoplay if applicable
         if (isAutoPlaying && delayMillis > 0) {
             handler.postDelayed(() -> {
                 currentStepIndex++;
@@ -144,7 +150,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
     }
 
-
+    // Countdown display UI
     private void startInlineCountdown(long millis) {
         if (countDownTimer != null) {
             countDownTimer.cancel();
@@ -173,6 +179,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
     }
 
 
+    // Fetch recipe from Firestore
     private void loadRecipeDetails() {
         DocumentReference recipeRef = db.collection("Recipes").document(recipeId);
 
@@ -193,6 +200,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         });
     }
 
+    // Set fields with recipe data, including image and textx
     private void displayRecipeDetails() {
         recipeTitle.setText(currentRecipe.getTitle());
         recipeDifficulty.setText(currentRecipe.getDifficulty());
@@ -212,6 +220,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         displayRecipeSteps();
     }
 
+    // Populate recipe steps dynamically
     private void displayRecipeSteps() {
         stepsContainer.removeAllViews();
         List<Recipe.Step> steps = currentRecipe.getSteps();
@@ -250,6 +259,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
     }
 
+    // Favorite button functionality
     private void toggleFavorite(boolean isActive){
         favoriteButton.setImageResource(isActive ?
                 R.drawable.favorite_pressed_svg :
@@ -257,6 +267,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         );
     }
 
+    // Cleanup resources
     @Override
     protected void onDestroy() {
         if (textToSpeech != null) {
@@ -269,6 +280,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    // Initialize Text-to-Speech
     private void initializeTextToSpeech() {
         textToSpeech = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
