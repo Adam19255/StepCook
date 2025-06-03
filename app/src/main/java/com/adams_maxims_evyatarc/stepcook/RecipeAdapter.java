@@ -15,124 +15,99 @@ import com.bumptech.glide.Glide;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Adapter for displaying recipes in a RecyclerView
- */
-public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder> {
+public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder> {
 
-    private Context context;
-    private List<Recipe> recipes;
-    private OnRecipeClickListener listener;
-    private boolean isActive = false;
-    // Interface for handling recipe click events
+    private final Context context;
+    private final List<Recipe> fullRecipeList = new ArrayList<>();
+    private final List<Recipe> filteredList = new ArrayList<>();
+    private OnRecipeClickListener onRecipeClickListener;
+
+    public RecipeAdapter(Context context) {
+        this.context = context;
+    }
+
     public interface OnRecipeClickListener {
         void onRecipeClick(Recipe recipe);
         void onFavoriteClick(Recipe recipe, int position);
     }
 
-    public RecipeAdapter(Context context) {
-        this.context = context;
-        this.recipes = new ArrayList<>();
+    public void setOnRecipeClickListener(OnRecipeClickListener listener) {
+        this.onRecipeClickListener = listener;
     }
 
-    public void setOnRecipeClickListener(OnRecipeClickListener listener) {
-        this.listener = listener;
+    public void setRecipes(List<Recipe> recipes) {
+        fullRecipeList.clear();
+        fullRecipeList.addAll(recipes);
+        filteredList.clear();
+        filteredList.addAll(recipes);
+        notifyDataSetChanged();
+    }
+
+    public void filter(String query) {
+        filteredList.clear();
+        if (query == null || query.trim().isEmpty()) {
+            filteredList.addAll(fullRecipeList);
+        } else {
+            String lowerQuery = query.toLowerCase();
+            for (Recipe recipe : fullRecipeList) {
+                if (recipe.getTitle() != null && recipe.getTitle().toLowerCase().contains(lowerQuery)) {
+                    filteredList.add(recipe);
+                }
+            }
+        }
+        notifyDataSetChanged();
     }
 
     @NonNull
     @Override
-    public RecipeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public RecipeAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.recipe_item, parent, false);
-        return new RecipeViewHolder(view);
+        return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecipeViewHolder holder, int position) {
-        Recipe recipe = recipes.get(position);
-        holder.bind(recipe, position);
+    public void onBindViewHolder(@NonNull RecipeAdapter.ViewHolder holder, int position) {
+        Recipe recipe = filteredList.get(position);
+
+        holder.recipeTitle.setText(recipe.getTitle());
+        holder.recipeCookTime.setText(recipe.getFormattedCookTime());
+        holder.recipeDifficulty.setText(recipe.getDifficulty());
+
+        if (recipe.getImageUrl() != null && !recipe.getImageUrl().isEmpty()) {
+            Glide.with(context).load(recipe.getImageUrl()).into(holder.recipeImage);
+        } else {
+            holder.recipeImage.setImageResource(R.drawable.image_placeholder);
+        }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (onRecipeClickListener != null) {
+                onRecipeClickListener.onRecipeClick(recipe);
+            }
+        });
+
+        holder.favoriteRecipe.setOnClickListener(v -> {
+            if (onRecipeClickListener != null) {
+                onRecipeClickListener.onFavoriteClick(recipe, position);
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
-        return recipes.size();
+        return filteredList.size();
     }
 
-    // Update the recipes list and refresh the view
-    public void setRecipes(List<Recipe> recipes) {
-        this.recipes = recipes;
-        notifyDataSetChanged();
-    }
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView recipeTitle, recipeCookTime, recipeDifficulty;
+        ImageView recipeImage, favoriteRecipe;
 
-    // ViewHolder class for recipe items
-    class RecipeViewHolder extends RecyclerView.ViewHolder {
-        private ImageView recipeImage;
-        private TextView recipeTitle;
-        private ImageView favoriteIcon;
-        private TextView recipeCookTime;
-        private TextView recipeDifficulty;
-        private TextView textDivider;
-
-        public RecipeViewHolder(@NonNull View itemView) {
+        public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            recipeImage = itemView.findViewById(R.id.recipeImage);
             recipeTitle = itemView.findViewById(R.id.recipeTitle);
             recipeCookTime = itemView.findViewById(R.id.recipeCookTime);
             recipeDifficulty = itemView.findViewById(R.id.recipeDifficulty);
-            textDivider = itemView.findViewById(R.id.textDivider);
-            favoriteIcon = itemView.findViewById(R.id.favoriteRecipe);
-
-            // Set click listener for the whole item
-            itemView.setOnClickListener(v -> {
-                int position = getAdapterPosition();
-                if (position != RecyclerView.NO_POSITION && listener != null) {
-                    listener.onRecipeClick(recipes.get(position));
-                }
-            });
-
-            // Set click listener for the favorite icon
-            favoriteIcon.setOnClickListener(v -> {
-                int position = getAdapterPosition();
-                if (position != RecyclerView.NO_POSITION && listener != null) {
-                    listener.onFavoriteClick(recipes.get(position), position);
-                    isActive = !isActive;
-                    if (isActive){
-                        favoriteIcon.setImageResource(R.drawable.favorite_pressed_svg);
-                    }
-                    else {
-                        favoriteIcon.setImageResource(R.drawable.favorite_unpressed_svg);
-                    }
-                }
-            });
-        }
-
-        public void bind(Recipe recipe, int position) {
-            // Set recipe title
-            recipeTitle.setText(recipe.getTitle());
-
-            // Set recipe info (cook time and difficulty)
-            String recipeCookTimeText = recipe.getFormattedCookTime();
-            String recipeDifficultyText = "";
-            String recipeTextDivider = " | ";
-            if (recipe.getDifficulty() != null && !recipe.getDifficulty().isEmpty()) {
-                recipeDifficultyText = recipe.getDifficulty();
-            }
-            recipeCookTime.setText(recipeCookTimeText);
-            textDivider.setText(recipeTextDivider);
-            recipeDifficulty.setText(recipeDifficultyText);
-
-            // Load recipe image using Glide if available
-            if (recipe.getImageUrl() != null && !recipe.getImageUrl().isEmpty()) {
-                Glide.with(context)
-                        .load(recipe.getImageUrl())
-                        .placeholder(R.drawable.image_placeholder)
-                        .into(recipeImage);
-            } else {
-                recipeImage.setImageResource(R.drawable.image_placeholder);
-            }
-
-            // For now, just use the unpressed favorite icon
-            // In a real implementation, this would check if the recipe is in favorites
-            favoriteIcon.setImageResource(R.drawable.favorite_unpressed_svg);
+            recipeImage = itemView.findViewById(R.id.recipeImage);
+            favoriteRecipe = itemView.findViewById(R.id.favoriteRecipe);
         }
     }
 }

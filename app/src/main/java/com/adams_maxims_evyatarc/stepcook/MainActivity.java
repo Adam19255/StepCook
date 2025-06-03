@@ -2,6 +2,8 @@ package com.adams_maxims_evyatarc.stepcook;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -17,7 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuItemClickListener, RecipeAdapter.OnRecipeClickListener  {
+public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuItemClickListener, RecipeAdapter.OnRecipeClickListener {
 
     private ImageView popupMenuButton;
     private EditText searchInput;
@@ -29,20 +31,16 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private RecyclerView recipeRecyclerView;
     private FrameLayout loadingLayout;
 
-    // Adapter for recipes
     private RecipeAdapter recipeAdapter;
+    private List<Recipe> allRecipes;
 
-    // Filter managers
     private FilterManager difficultyFilterManager;
     private FilterManager cookTimeFilterManager;
     private FavoriteFilterManager favoriteFilterManager;
     private MyRecipesFilterManager myRecipesFilterManager;
 
-    // UI utils
     private DialogManager dialogManager;
     private UIHelper uiHelper;
-
-    // Recipe manager
     private RecipeManager recipeManager;
 
     @Override
@@ -69,6 +67,16 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         loadingLayout = findViewById(R.id.loadingLayout);
 
         searchInput.clearFocus();
+
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (recipeAdapter != null) {
+                    recipeAdapter.filter(s.toString());
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
     }
 
     private void initializeManagers() {
@@ -90,17 +98,12 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     }
 
     private void setupClickListeners() {
-        popupMenuButton.setOnClickListener(v -> showPopupMenu(v));
-
+        popupMenuButton.setOnClickListener(this::showPopupMenu);
         addRecipeButton.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, AddRecipeActivity.class)));
-
         difficultyFilter.setOnClickListener(v -> difficultyFilterManager.showFilterDialog());
-
         favoriteFilter.setOnClickListener(v -> favoriteFilterManager.toggleFilter());
-
         cookTimeFilter.setOnClickListener(v -> cookTimeFilterManager.showFilterDialog());
-
         myRecipesFilter.setOnClickListener(v -> myRecipesFilterManager.toggleFilter());
     }
 
@@ -112,26 +115,19 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         loadingLayout.setVisibility(View.GONE);
     }
 
-    /**
-     * Load recipes from the database
-     */
     private void loadRecipes() {
         showLoading();
-
-        // Fetch recipes from RecipeManager
         recipeManager.getAllRecipes(new RecipeManager.RecipesRetrievalCallback() {
             @Override
             public void onRecipesLoaded(List<Recipe> recipes) {
-                // Update the adapter with the loaded recipes
-                recipeAdapter.setRecipes(recipes);
+                allRecipes = recipes;
+                recipeAdapter.setRecipes(allRecipes);
                 hideLoading();
             }
 
             @Override
             public void onError(Exception e) {
                 hideLoading();
-
-                // Show error message
                 Toast.makeText(MainActivity.this, "Error loading recipes: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
@@ -147,7 +143,6 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     @Override
     public boolean onMenuItemClick(MenuItem item) {
         int id = item.getItemId();
-
         if (id == R.id.menu_settings) {
             startActivity(new Intent(MainActivity.this, SettingsActivity.class));
             return true;
@@ -158,13 +153,11 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
             dialogManager.showExitConfirmationDialog();
             return true;
         }
-
         return false;
     }
 
     @Override
     public void onRecipeClick(Recipe recipe) {
-        // Handle recipe click event
         Intent intent = new Intent(MainActivity.this, RecipeDetailActivity.class);
         intent.putExtra("RECIPE_ID", recipe.getId());
         startActivity(intent);
@@ -172,15 +165,12 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
 
     @Override
     public void onFavoriteClick(Recipe recipe, int position) {
-        // Handle favorite button click
-        // This would implement favorite functionality in a future update
         Toast.makeText(this, "Favorite button clicked", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload recipes when returning to this activity
         loadRecipes();
     }
 }
