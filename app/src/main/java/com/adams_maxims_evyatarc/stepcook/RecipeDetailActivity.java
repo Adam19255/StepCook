@@ -261,13 +261,30 @@ public class RecipeDetailActivity extends AppCompatActivity {
             startInlineCountdown(delayMillis);
         }
 
-        if (isAutoPlaying && delayMillis > 0) {
-            handler.postDelayed(() -> {
-                currentStepIndex++;
-                if (currentStepIndex < currentRecipe.getSteps().size()) {
-                    playStep(currentRecipe.getSteps().get(currentStepIndex));
-                }
-            }, delayMillis);
+        if (isAutoPlaying) {
+            if (delayMillis > 0) {
+                handler.postDelayed(() -> {
+                    currentStepIndex++;
+                    if (currentStepIndex < currentRecipe.getSteps().size()) {
+                        playStep(currentRecipe.getSteps().get(currentStepIndex));
+                    }
+                }, delayMillis);
+            } else {
+                // No timer — wait for TTS to finish
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!textToSpeech.isSpeaking()) {
+                            currentStepIndex++;
+                            if (currentStepIndex < currentRecipe.getSteps().size()) {
+                                playStep(currentRecipe.getSteps().get(currentStepIndex));
+                            }
+                        } else {
+                            handler.postDelayed(this, 300); // check again in 300ms
+                        }
+                    }
+                }, 300);
+            }
         } else {
             currentStepIndex++;
         }
