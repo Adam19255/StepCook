@@ -12,7 +12,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.Toast;
-
+import com.google.firebase.auth.FirebaseAuth;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,6 +42,8 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private DialogManager dialogManager;
     private UIHelper uiHelper;
     private RecipeManager recipeManager;
+    private User currentUser;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
 
         cookTimeFilterManager = new CookTimeFilterManager(this, cookTimeFilter, uiHelper);
         favoriteFilterManager = new FavoriteFilterManager(this, favoriteFilter);
-        myRecipesFilterManager = new MyRecipesFilterManager(this, myRecipesFilter);
+        myRecipesFilterManager = new MyRecipesFilterManager(this, myRecipesFilter, uiHelper);
     }
 
     private void setupRecyclerView() {
@@ -105,8 +107,19 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         difficultyFilter.setOnClickListener(v -> difficultyFilterManager.showFilterDialog());
         favoriteFilter.setOnClickListener(v -> favoriteFilterManager.toggleFilter());
         cookTimeFilter.setOnClickListener(v -> cookTimeFilterManager.showFilterDialog());
-        myRecipesFilter.setOnClickListener(v -> myRecipesFilterManager.toggleFilter());
+        myRecipesFilter.setOnClickListener(v -> {
+            boolean newValue = !myRecipesFilterManager.isFilterActive(); // or however your manager tracks toggle
+            onMyRecipesFilterToggled(newValue);
+            myRecipesFilterManager.setFilterActive(newValue); // update its state
+        });
+
     }
+    String getCurrentUserId() {
+        return FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                : null;
+    }
+
 
     private void showLoading() {
         loadingLayout.setVisibility(View.VISIBLE);
@@ -166,6 +179,11 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     }
 
 
+    public void onMyRecipesFilterToggled(boolean onlyMine) {
+        // You can get user ID from wherever it's stored (e.g., shared preferences or user session)
+        String userId = getCurrentUserId();  // define this method if needed
+        recipeAdapter.setMyRecipesFilter(userId, onlyMine);
+    }
 
 
     @Override

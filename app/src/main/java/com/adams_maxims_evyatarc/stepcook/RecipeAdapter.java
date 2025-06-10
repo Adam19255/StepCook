@@ -25,6 +25,9 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
     private String searchInputText = "";
     private Integer minCookTime = null;
     private Integer maxCookTime = null;
+    private String currentUserId = null;
+    private boolean showOnlyMine = false;
+
 
 
 
@@ -54,6 +57,13 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         this.maxCookTime = max;
         filter(searchInputText);
     }
+
+    public void setMyRecipesFilter(String userId, boolean onlyMine) {
+        this.currentUserId = userId;
+        this.showOnlyMine = onlyMine;
+        filter(searchInputText);
+    }
+
 
 
     public void setDifficultyFilter(String difficulty) {
@@ -86,9 +96,15 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
             boolean matchesCookTime = (minCookTime == null || recipe.getTotalCookTimeMinutes() >= minCookTime)
                     && (maxCookTime == null || recipe.getTotalCookTimeMinutes() <= maxCookTime);
 
-            if (matchesQuery && matchesDifficulty && matchesCookTime) {
+            boolean matchesMine = !showOnlyMine || (recipe.getAuthorId() != null && recipe.getAuthorId().equals(currentUserId));
+
+
+
+            if (matchesQuery && matchesDifficulty && matchesCookTime && matchesMine) {
                 filteredList.add(recipe);
             }
+
+
         }
 
 

@@ -12,10 +12,14 @@ public class MyRecipesFilterManager extends FilterManager{
     private Context context;
     private boolean isActive = false;
 
-    public MyRecipesFilterManager(Context context, Button favoriteFilterButton) {
-        super(favoriteFilterButton, new UIHelper(context));
-        this.context = context;
+    private final MainActivity activity;
+
+    public MyRecipesFilterManager(MainActivity activity, Button filterButton, UIHelper uiHelper) {
+        super(filterButton, uiHelper);
+        this.activity = activity;
+        this.context = activity;
     }
+
 
     /**
      * Toggle the my recipes filter on/off
@@ -36,15 +40,18 @@ public class MyRecipesFilterManager extends FilterManager{
         // No dialog for my recipes filter - it's a simple toggle
     }
 
-    @Override
-    public void applyFilter(String filterValue) {
-        // Implement actual filtering logic
-    }
-
-    /**
-     * Get current filter state
-     */
-    public boolean isActive() {
+    public boolean isFilterActive() {
         return isActive;
     }
+
+    public void setFilterActive(boolean active) {
+        this.isActive = active;
+    }
+
+    @Override
+    public void applyFilter(String filterValue) {
+        boolean onlyMine = filterValue.equalsIgnoreCase("true");
+        activity.onMyRecipesFilterToggled(onlyMine);
+    }
+
 }
