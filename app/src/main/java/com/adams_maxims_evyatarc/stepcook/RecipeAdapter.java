@@ -27,6 +27,8 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
     private Integer maxCookTime = null;
     private String currentUserId = null;
     private boolean showOnlyMine = false;
+    private List<String> favoriteRecipeIds = new ArrayList<>();
+    private boolean onlyFavorites = false;
 
 
 
@@ -71,6 +73,26 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         filter(searchInputText); // searchInputText is tracked from the EditText
     }
 
+    public void setFavoritesFilter(boolean active) {
+        this.onlyFavorites = active;
+        filter(searchInputText);
+    }
+
+
+    public void setFavoriteRecipeIds(List<String> ids) {
+        this.favoriteRecipeIds = ids != null ? ids : new ArrayList<>();
+        notifyDataSetChanged(); // Triggers UI update
+    }
+
+    public void updateList(List<Recipe> newList) {
+        this.filteredList.clear();
+        this.filteredList.addAll(newList);
+        notifyDataSetChanged();
+    }
+
+
+
+
     public void clearDifficultyFilter() {
         this.activeDifficultyFilter = null;
         filter(searchInputText);
@@ -98,11 +120,13 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
 
             boolean matchesMine = !showOnlyMine || (recipe.getAuthorId() != null && recipe.getAuthorId().equals(currentUserId));
 
+            boolean matchesFavorites = !onlyFavorites || favoriteRecipeIds.contains(recipe.getId());
 
 
-            if (matchesQuery && matchesDifficulty && matchesCookTime && matchesMine) {
+            if (matchesQuery && matchesDifficulty && matchesCookTime && matchesMine && matchesFavorites) {
                 filteredList.add(recipe);
             }
+
 
 
         }
@@ -144,6 +168,13 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
                 onRecipeClickListener.onFavoriteClick(recipe, position);
             }
         });
+
+        if (favoriteRecipeIds.contains(recipe.getId())) {
+            holder.favoriteRecipe.setImageResource(R.drawable.favorite_pressed_svg);
+        } else {
+            holder.favoriteRecipe.setImageResource(R.drawable.favorite_unpressed_svg);
+        }
+
     }
 
     @Override

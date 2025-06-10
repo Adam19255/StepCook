@@ -1,5 +1,13 @@
 package com.adams_maxims_evyatarc.stepcook;
 
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.auth.FirebaseUser;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
@@ -54,8 +62,11 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         initializeManagers();
         setupRecyclerView();
         setupClickListeners();
-        loadRecipes();
+
+        // 🔄 Load favorites first, then recipes
+        loadFavoriteRecipesAndThenLoadRecipes();
     }
+
 
     private void initializeViews() {
         popupMenuButton = findViewById(R.id.popupMenuButton);
@@ -89,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         difficultyFilterManager = new DifficultyFilterManager(this, difficultyFilter, uiHelper);
 
         cookTimeFilterManager = new CookTimeFilterManager(this, cookTimeFilter, uiHelper);
-        favoriteFilterManager = new FavoriteFilterManager(this, favoriteFilter);
+        favoriteFilterManager = new FavoriteFilterManager(this, favoriteFilter, uiHelper);
         myRecipesFilterManager = new MyRecipesFilterManager(this, myRecipesFilter, uiHelper);
     }
 
@@ -174,9 +185,69 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         recipeAdapter.setDifficultyFilter(difficulty);
     }
 
+
+
     public void onCookTimeSelected(Integer min, Integer max) {
         recipeAdapter.setCookTimeFilter(min, max);
     }
+
+    public void onFavoriteFilterToggled(boolean onlyFavorites) {
+        String currentUserId = getCurrentUserId(); // You already use this method
+
+        FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(currentUserId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (snapshot.exists()) {
+                        List<String> favorites = (List<String>) snapshot.get("favorites");
+                        if (favorites == null) favorites = new ArrayList<>();
+
+                        if (onlyFavorites) {
+                            // 🔽 Filter to only show recipes in favorites
+                            List<Recipe> filtered = new ArrayList<>();
+                            for (Recipe recipe : allRecipes) {
+                                if (favorites.contains(recipe.getId())) {
+                                    filtered.add(recipe);
+                                }
+                            }
+                            recipeAdapter.updateList(filtered);
+                        } else {
+                            // 🔄 Show all
+                            recipeAdapter.updateList(allRecipes);
+                        }
+                    }
+                });
+    }
+
+
+    private void loadFavoriteRecipesAndThenLoadRecipes() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null) {
+            FirebaseFirestore.getInstance()
+                    .collection("Users")
+                    .document(user.getUid())
+                    .get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        List<String> favorites = (List<String>) documentSnapshot.get("favorites");
+                        if (favorites != null) {
+                            recipeAdapter.setFavoriteRecipeIds(new ArrayList<>(favorites));
+                        } else {
+                            recipeAdapter.setFavoriteRecipeIds(new ArrayList<>());
+                        }
+
+                        // ✅ Now that favorites are set, load recipes
+                        loadRecipes();
+                    })
+                    .addOnFailureListener(e -> {
+                        recipeAdapter.setFavoriteRecipeIds(new ArrayList<>());
+                        loadRecipes(); // Still try loading recipes
+                    });
+        } else {
+            loadRecipes(); // Not logged in? Still load recipes
+        }
+    }
+
 
 
     public void onMyRecipesFilterToggled(boolean onlyMine) {
@@ -195,8 +266,38 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
 
     @Override
     public void onFavoriteClick(Recipe recipe, int position) {
-        Toast.makeText(this, "Favorite button clicked", Toast.LENGTH_SHORT).show();
+        String currentUserId = getCurrentUserId(); // your existing method
+
+        FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(currentUserId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (snapshot.exists()) {
+                        List<String> favorites = (List<String>) snapshot.get("favorites");
+                        if (favorites == null) favorites = new ArrayList<>();
+
+                        String recipeId = recipe.getId();
+                        boolean isFavorite = favorites.contains(recipeId);
+
+                        if (isFavorite) {
+                            favorites.remove(recipeId);
+                        } else {
+                            favorites.add(recipeId);
+                        }
+
+                        List<String> updatedFavorites = new ArrayList<>(favorites); // ✅ final copy
+
+                        snapshot.getReference().update("favorites", updatedFavorites)
+                                .addOnSuccessListener(unused -> {
+                                    // ✅ Update adapter with latest list
+                                    recipeAdapter.setFavoriteRecipeIds(updatedFavorites);
+                                });
+                    }
+                });
     }
+
+
 
     @Override
     protected void onResume() {

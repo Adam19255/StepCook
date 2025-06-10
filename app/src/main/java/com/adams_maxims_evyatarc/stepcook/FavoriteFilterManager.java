@@ -10,11 +10,15 @@ import android.widget.Toast;
 public class FavoriteFilterManager extends FilterManager {
     private Context context;
     private boolean isActive = false;
+    private MainActivity activity;
 
-    public FavoriteFilterManager(Context context, Button favoriteFilterButton) {
-        super(favoriteFilterButton, new UIHelper(context));
-        this.context = context;
+
+    public FavoriteFilterManager(MainActivity activity, Button filterButton, UIHelper uiHelper) {
+        super(filterButton, uiHelper);
+        this.activity = activity;
+        this.context = activity;
     }
+
 
     /**
      * Toggle the favorite filter on/off
@@ -37,8 +41,11 @@ public class FavoriteFilterManager extends FilterManager {
 
     @Override
     public void applyFilter(String filterValue) {
-        // Implement actual filtering logic
+        boolean onlyFavs = filterValue.equalsIgnoreCase("active");
+
+        activity.onFavoriteFilterToggled(onlyFavs);
     }
+
 
     /**
      * Get current filter state
