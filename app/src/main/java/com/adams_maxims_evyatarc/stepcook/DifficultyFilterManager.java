@@ -18,10 +18,16 @@ public class DifficultyFilterManager extends FilterManager {
     private String selectedDifficulty = "All"; // Default option
     private final String[] DIFFICULTY_OPTIONS = {"All", "Easy", "Medium", "Hard"};
 
-    public DifficultyFilterManager(Context context, Button difficultyFilterButton) {
-        super(difficultyFilterButton, new UIHelper(context));
-        this.context = context;
+
+    private final MainActivity activity;
+//    private final Button filterButton;
+
+    public DifficultyFilterManager(MainActivity activity, Button filterButton, UIHelper uiHelper) {
+        super(filterButton, uiHelper);
+        this.activity = activity;
+        this.context = activity;  // ✅ FIX: assign context properly
     }
+
 
     @Override
     public void showFilterDialog() {
@@ -133,6 +139,10 @@ public class DifficultyFilterManager extends FilterManager {
 
     @Override
     public void applyFilter(String filterValue) {
-        // Implement actual filtering logic
+        if (filterValue.equalsIgnoreCase("All")) {
+            activity.onDifficultySelected(null); // no filtering
+        } else {
+            activity.onDifficultySelected(filterValue); // apply selected difficulty
+        }
     }
 }

@@ -21,6 +21,10 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
     private final List<Recipe> fullRecipeList = new ArrayList<>();
     private final List<Recipe> filteredList = new ArrayList<>();
     private OnRecipeClickListener onRecipeClickListener;
+    private String activeDifficultyFilter = null;
+    private String searchInputText = "";
+
+
 
     public RecipeAdapter(Context context) {
         this.context = context;
@@ -43,20 +47,41 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         notifyDataSetChanged();
     }
 
+    public void setDifficultyFilter(String difficulty) {
+        this.activeDifficultyFilter = difficulty;
+        filter(searchInputText); // searchInputText is tracked from the EditText
+    }
+
+    public void clearDifficultyFilter() {
+        this.activeDifficultyFilter = null;
+        filter(searchInputText);
+    }
+
+    public void updateSearchQuery(String query) {
+        this.searchInputText = query != null ? query : "";
+        filter(this.searchInputText);
+    }
+
+
     public void filter(String query) {
         filteredList.clear();
-        if (query == null || query.trim().isEmpty()) {
-            filteredList.addAll(fullRecipeList);
-        } else {
-            String lowerQuery = query.toLowerCase();
-            for (Recipe recipe : fullRecipeList) {
-                if (recipe.getTitle() != null && recipe.getTitle().toLowerCase().contains(lowerQuery)) {
-                    filteredList.add(recipe);
-                }
+        String lowerQuery = query != null ? query.toLowerCase() : "";
+
+        for (Recipe recipe : fullRecipeList) {
+            boolean matchesQuery = recipe.getTitle() != null &&
+                    recipe.getTitle().toLowerCase().contains(lowerQuery);
+
+            boolean matchesDifficulty = (activeDifficultyFilter == null ||
+                    recipe.getDifficulty().equalsIgnoreCase(activeDifficultyFilter));
+
+            if (matchesQuery && matchesDifficulty) {
+                filteredList.add(recipe);
             }
         }
+
         notifyDataSetChanged();
     }
+
 
     @NonNull
     @Override
