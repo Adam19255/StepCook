@@ -23,6 +23,8 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
     private OnRecipeClickListener onRecipeClickListener;
     private String activeDifficultyFilter = null;
     private String searchInputText = "";
+    private Integer minCookTime = null;
+    private Integer maxCookTime = null;
 
 
 
@@ -46,6 +48,13 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         filteredList.addAll(recipes);
         notifyDataSetChanged();
     }
+
+    public void setCookTimeFilter(Integer min, Integer max) {
+        this.minCookTime = min;
+        this.maxCookTime = max;
+        filter(searchInputText);
+    }
+
 
     public void setDifficultyFilter(String difficulty) {
         this.activeDifficultyFilter = difficulty;
@@ -74,10 +83,14 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
             boolean matchesDifficulty = (activeDifficultyFilter == null ||
                     recipe.getDifficulty().equalsIgnoreCase(activeDifficultyFilter));
 
-            if (matchesQuery && matchesDifficulty) {
+            boolean matchesCookTime = (minCookTime == null || recipe.getTotalCookTimeMinutes() >= minCookTime)
+                    && (maxCookTime == null || recipe.getTotalCookTimeMinutes() <= maxCookTime);
+
+            if (matchesQuery && matchesDifficulty && matchesCookTime) {
                 filteredList.add(recipe);
             }
         }
+
 
         notifyDataSetChanged();
     }

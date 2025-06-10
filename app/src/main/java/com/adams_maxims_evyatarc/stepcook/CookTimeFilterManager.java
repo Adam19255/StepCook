@@ -18,10 +18,14 @@ public class CookTimeFilterManager extends FilterManager {
     private String selectedCookTime = "All"; // Default option
     private final String[] COOK_TIME_OPTIONS = {"All", "Fast", "Medium", "Long"};
 
-    public CookTimeFilterManager(Context context, Button cookTimeFilterButton) {
-        super(cookTimeFilterButton, new UIHelper(context));
-        this.context = context;
+    private final MainActivity activity;
+
+    public CookTimeFilterManager(MainActivity activity, Button filterButton, UIHelper uiHelper) {
+        super(filterButton, uiHelper);
+        this.activity = activity;
+        this.context = activity;
     }
+
 
     @Override
     public void showFilterDialog() {
@@ -133,6 +137,22 @@ public class CookTimeFilterManager extends FilterManager {
 
     @Override
     public void applyFilter(String filterValue) {
-        // Implement actual filtering logic
+        switch (filterValue) {
+            case "Fast":
+                activity.onCookTimeSelected(0, 15);
+                break;
+            case "Medium":
+                activity.onCookTimeSelected(16, 45);
+                break;
+            case "Long":
+                activity.onCookTimeSelected(46, Integer.MAX_VALUE);
+                break;
+            case "All":
+            default:
+                activity.onCookTimeSelected(null, null);
+                break;
+        }
     }
+
+
 }

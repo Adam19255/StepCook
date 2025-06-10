@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
 
         difficultyFilterManager = new DifficultyFilterManager(this, difficultyFilter, uiHelper);
 
-        cookTimeFilterManager = new CookTimeFilterManager(this, cookTimeFilter);
+        cookTimeFilterManager = new CookTimeFilterManager(this, cookTimeFilter, uiHelper);
         favoriteFilterManager = new FavoriteFilterManager(this, favoriteFilter);
         myRecipesFilterManager = new MyRecipesFilterManager(this, myRecipesFilter);
     }
@@ -160,6 +160,12 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     public void onDifficultySelected(String difficulty) {
         recipeAdapter.setDifficultyFilter(difficulty);
     }
+
+    public void onCookTimeSelected(Integer min, Integer max) {
+        recipeAdapter.setCookTimeFilter(min, max);
+    }
+
+
 
 
     @Override
