@@ -57,7 +57,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private Handler handler = new Handler();
     private CountDownTimer countDownTimer;
     private SpeechRecognizer speechRecognizer;
-
+    private boolean isPlaying = false;
+    private boolean canProcessCommand = true;
+    private final long COMMAND_COOLDOWN_MS = 1500;
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
 
     private final RecognitionListener recognitionListener = new RecognitionListener() {
@@ -108,55 +110,26 @@ public class RecipeDetailActivity extends AppCompatActivity {
             }
         }
 
-//        @Override
-//        public void onResults(Bundle results) {
-//            isListening = false;
-//            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-//            if (matches != null && !matches.isEmpty()) {
-//                String command = matches.get(0).toLowerCase().trim();
-//                Log.d("SpeechRecognition", "Recognized: " + command);
-//                handleVoiceCommand(command);
-//            }
-//
-//            // Restart listening after processing command
-//            if (!isFinishing()) {
-//                handler.postDelayed(() -> {
-//                    if (!isFinishing()) {
-//                        restartSpeechRecognition();
-//                    }
-//                }, 1000);
-//            }
-//        }
-
         @Override
         public void onResults(Bundle results) {
             isListening = false;
             ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-
             if (matches != null && !matches.isEmpty()) {
-                Log.d("SpeechRecognition", "Final Results:");
-                for (String result : matches) {
-                    Log.d("SpeechRecognition", "🟢 Heard (final): " + result);
-                }
-
-                // Skip command logic while testing
-                Toast.makeText(RecipeDetailActivity.this, "Heard: " + matches.get(0), Toast.LENGTH_SHORT).show();
-            } else {
-                Log.d("SpeechRecognition", "Final Results: None");
+                String command = matches.get(0).toLowerCase().trim();
+                Log.d("SpeechRecognition", "Recognized: " + command);
+                handleVoiceCommand(command);
             }
 
+            // Restart listening after processing command
             if (!isFinishing()) {
-                handler.postDelayed(() -> RecipeDetailActivity.this.restartSpeechRecognition(), 1000);
+                handler.postDelayed(() -> {
+                    if (!isFinishing()) {
+                        restartSpeechRecognition();
+                    }
+                }, 1000);
             }
         }
 
-//        @Override
-//        public void onPartialResults(Bundle partialResults) {
-//            ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-//            if (matches != null && !matches.isEmpty()) {
-//                Log.d("SpeechRecognition", "Partial: " + matches.get(0));
-//            }
-//        }
         @Override
         public void onPartialResults(Bundle partialResults) {
             ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
@@ -164,6 +137,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
             if (matches != null && !matches.isEmpty()) {
                 for (String partial : matches) {
                     Log.d("SpeechRecognition", "🟡 Heard (partial): " + partial);
+                    handleVoiceCommand(partial.toLowerCase(Locale.ROOT)); // ✅ Run command immediately
                 }
             } else {
                 Log.d("SpeechRecognition", "Partial Results: None");
@@ -242,8 +216,14 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
         playButton.setOnClickListener(v -> {
             if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
-                Toast.makeText(this, "All steps completed", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
+                currentStepIndex = 0;
                 return;
+            }
+            if(!isPlaying) {
+                isPlaying = !isPlaying;
+                Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
+
             }
             playStep(currentRecipe.getSteps().get(currentStepIndex));
         });
@@ -251,6 +231,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
     private void playStep(Recipe.Step step) {
         textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+        Log.d("SpeechRecognition", "Playing step " + currentStepIndex + " " + step.getDescription());
 
         long delayMillis = step.getTimerMinutes() != null ? step.getTimerMinutes() * 60L * 1000L : 0;
 
@@ -485,19 +466,59 @@ public class RecipeDetailActivity extends AppCompatActivity {
         }
     }
 
-    private void handleVoiceCommand(String command) {
-        Log.d("SpeechRecognition", "Processing command: " + command);
 
-        // More flexible command matching
+    private void stopStep() {
+        // Cancel any running countdown timer
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
+
+        // Reset the timer display to show the original formatted time
+        if (currentStepTimerTextView != null && currentRecipe != null &&
+                currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
+
+            Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
+            String formattedTime = currentStep.getFormattedTime();
+
+            if (!formattedTime.isEmpty()) {
+                currentStepTimerTextView.setText(formattedTime);
+            } else {
+                currentStepTimerTextView.setText("");
+            }
+        }
+
+        // Stop any ongoing text-to-speech
+        if (textToSpeech != null && textToSpeech.isSpeaking()) {
+            textToSpeech.stop();
+        }
+    }
+    private void handleVoiceCommand(String command) {
+        if (!canProcessCommand) return;
+        handler.postDelayed(() -> canProcessCommand = true, COMMAND_COOLDOWN_MS);
+
+        Log.d("SpeechRecognition", "Processinggggggg command: " + command);
+
         if (command.contains("next")) {
+            stopStep(); // Stop current timer and reset display
+            canProcessCommand = false;
+
+            // Move to next step first
+            currentStepIndex++;
+
             if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Next step", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "No more steps", Toast.LENGTH_SHORT).show();
+                // Reset to last valid step if we went too far
+                currentStepIndex = Math.max(0, currentRecipe.getSteps().size() - 1);
             }
         } else if (command.contains("previous") || command.contains("back")) {
+            canProcessCommand = false;
+            stopStep(); // Stop current timer and reset display
             if (currentStepIndex > 0) {
+                stopStep();
                 currentStepIndex--;
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Previous step", Toast.LENGTH_SHORT).show();
@@ -505,28 +526,49 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Already at first step", Toast.LENGTH_SHORT).show();
             }
         } else if (command.contains("pause") || command.contains("stop")) {
-            if (countDownTimer != null) {
-                countDownTimer.cancel();
-                Toast.makeText(this, "Timer paused", Toast.LENGTH_SHORT).show();
-            }
+            canProcessCommand = false;
+            stopStep(); // This will stop and reset the timer
             if (textToSpeech != null && textToSpeech.isSpeaking()) {
                 textToSpeech.stop();
             }
+            Toast.makeText(this, "Stopped", Toast.LENGTH_SHORT).show();
         } else if (command.contains("resume") || command.contains("continue")) {
+            canProcessCommand = false;
             if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Resuming", Toast.LENGTH_SHORT).show();
             }
         } else if (command.contains("favorite")) {
+            canProcessCommand = false;
             isActive = !isActive;
             toggleFavorite(isActive);
             Toast.makeText(this, isActive ? "Added to favorites" : "Removed from favorites", Toast.LENGTH_SHORT).show();
         } else if (command.contains("repeat")) {
-            if (currentRecipe != null && currentStepIndex > 0) {
-                playStep(currentRecipe.getSteps().get(currentStepIndex - 1));
-                Toast.makeText(this, "Repeating step", Toast.LENGTH_SHORT).show();
+            stopStep(); // Stop current timer first
+            if (currentRecipe != null && currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
+                playStep(currentRecipe.getSteps().get(currentStepIndex));
+                Toast.makeText(this, "Repeating current step", Toast.LENGTH_SHORT).show();
             }
-        } else {
+        } else if(command.contains("play") || command.contains("start")) {
+            canProcessCommand = false;
+
+            Toast.makeText(this, "Playing recipe", Toast.LENGTH_SHORT).show();
+            if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
+                Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
+                currentStepIndex = 0;
+            }
+            if(!isPlaying) {
+                isPlaying = true;
+                Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
+            }
+            playStep(currentRecipe.getSteps().get(currentStepIndex));
+        } else if(command.contains("restart"))  {
+            canProcessCommand = false;
+            stopStep();
+            currentStepIndex = 0;
+            playStep(currentRecipe.getSteps().get(currentStepIndex));
+        }
+          else {
             Log.d("SpeechRecognition", "Unknown command: " + command);
             // Don't show toast for unknown commands to avoid spam
         }
