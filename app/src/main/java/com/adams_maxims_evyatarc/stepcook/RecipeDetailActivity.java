@@ -58,6 +58,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private CountDownTimer countDownTimer;
     private SpeechRecognizer speechRecognizer;
     private boolean isPlaying = false;
+
+    private long remainingTimeInMillis = 0;
+
     private boolean canProcessCommand = true;
     private final long COMMAND_COOLDOWN_MS = 1500;
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
@@ -272,10 +275,13 @@ public class RecipeDetailActivity extends AppCompatActivity {
     }
 
     private void startInlineCountdown(long millis) {
+        remainingTimeInMillis = millis;
+
         if (countDownTimer != null) countDownTimer.cancel();
 
         countDownTimer = new CountDownTimer(millis, 1000) {
             public void onTick(long millisUntilFinished) {
+                remainingTimeInMillis = millisUntilFinished; // 💾 Save remaining time
                 long minutes = millisUntilFinished / 60000;
                 long seconds = (millisUntilFinished / 1000) % 60;
                 if (currentStepTimerTextView != null) {
@@ -284,6 +290,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
             }
 
             public void onFinish() {
+                remainingTimeInMillis = 0;
                 if (currentStepTimerTextView != null) currentStepTimerTextView.setText("");
             }
         };
@@ -468,39 +475,42 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
 
     private void stopStep() {
-        // Cancel any running countdown timer
+        // Stop timer but don't reset remainingTimeInMillis
         if (countDownTimer != null) {
             countDownTimer.cancel();
             countDownTimer = null;
         }
 
-        // Reset the timer display to show the original formatted time
-        if (currentStepTimerTextView != null && currentRecipe != null &&
-                currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
-
-            Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
-            String formattedTime = currentStep.getFormattedTime();
-
-            if (!formattedTime.isEmpty()) {
-                currentStepTimerTextView.setText(formattedTime);
-            } else {
-                currentStepTimerTextView.setText("");
-            }
-        }
-
-        // Stop any ongoing text-to-speech
         if (textToSpeech != null && textToSpeech.isSpeaking()) {
             textToSpeech.stop();
         }
     }
+
+    private void resetStep() {
+        if (currentRecipe != null &&
+                currentStepIndex >= 0 &&
+                currentStepIndex < currentRecipe.getSteps().size()) {
+
+            stopStep(); // Stop TTS and timer
+
+            Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
+            remainingTimeInMillis = step.getTimerMinutes() != null
+                    ? step.getTimerMinutes() * 60L * 1000L
+                    : 0;
+
+            // Speak step again
+            textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+        }
+    }
+
     private void handleVoiceCommand(String command) {
         if (!canProcessCommand) return;
         handler.postDelayed(() -> canProcessCommand = true, COMMAND_COOLDOWN_MS);
 
-        Log.d("SpeechRecognition", "Processinggggggg command: " + command);
+        Log.d("SpeechRecognition", "💻 Processing command: " + command);
 
         if (command.contains("next")) {
-            stopStep(); // Stop current timer and reset display
+            resetStep(); // Stop current timer and reset display
             canProcessCommand = false;
 
             // Move to next step first
@@ -516,9 +526,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
             }
         } else if (command.contains("previous") || command.contains("back")) {
             canProcessCommand = false;
-            stopStep(); // Stop current timer and reset display
+            resetStep(); // Stop current timer and reset display
             if (currentStepIndex > 0) {
-                stopStep();
+                resetStep();
                 currentStepIndex--;
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Previous step", Toast.LENGTH_SHORT).show();
@@ -528,28 +538,29 @@ public class RecipeDetailActivity extends AppCompatActivity {
         } else if (command.contains("pause") || command.contains("stop")) {
             canProcessCommand = false;
             stopStep(); // This will stop and reset the timer
-            if (textToSpeech != null && textToSpeech.isSpeaking()) {
-                textToSpeech.stop();
-            }
             Toast.makeText(this, "Stopped", Toast.LENGTH_SHORT).show();
         } else if (command.contains("resume") || command.contains("continue")) {
             canProcessCommand = false;
-            if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
-                playStep(currentRecipe.getSteps().get(currentStepIndex));
-                Toast.makeText(this, "Resuming", Toast.LENGTH_SHORT).show();
+            if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
+                startInlineCountdown(remainingTimeInMillis); // ▶️ Resume countdown
+                Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
+                textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null); // Optional: resume speech
+                Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Nothing to resume", Toast.LENGTH_SHORT).show();
             }
         } else if (command.contains("favorite")) {
             canProcessCommand = false;
             isActive = !isActive;
             toggleFavorite(isActive);
             Toast.makeText(this, isActive ? "Added to favorites" : "Removed from favorites", Toast.LENGTH_SHORT).show();
-        } else if (command.contains("repeat")) {
-            stopStep(); // Stop current timer first
+        } else if (command.contains("repeat") || command.contains("again")) {
+            resetStep(); // Stop current timer first
             if (currentRecipe != null && currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Repeating current step", Toast.LENGTH_SHORT).show();
             }
-        } else if(command.contains("play") || command.contains("start")) {
+        } else if(command.contains("play")) {
             canProcessCommand = false;
 
             Toast.makeText(this, "Playing recipe", Toast.LENGTH_SHORT).show();
@@ -562,10 +573,12 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
             }
             playStep(currentRecipe.getSteps().get(currentStepIndex));
-        } else if(command.contains("restart"))  {
+        } else if (command.contains("restart")) {
             canProcessCommand = false;
-            stopStep();
+            Toast.makeText(this, "Restarting recipe", Toast.LENGTH_SHORT).show();
+
             currentStepIndex = 0;
+            resetStep();
             playStep(currentRecipe.getSteps().get(currentStepIndex));
         }
           else {
