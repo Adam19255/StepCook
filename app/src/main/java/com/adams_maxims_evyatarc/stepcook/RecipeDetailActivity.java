@@ -1,6 +1,9 @@
 package com.adams_maxims_evyatarc.stepcook;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -19,6 +22,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
@@ -33,6 +37,11 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
     private UserManager userManager = UserManager.getInstance();
+    private NotificationManager notificationManager;
+    private static final String CHANNEL_ID = "notificaionChannel";
+    private static final int NOTIFICATION_ID = 1001;
+
+
     private String recipeId;
     private Recipe currentRecipe;
 
@@ -184,6 +193,17 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
         // Check and request permission before initializing speech recognition
         checkAudioPermission();
+
+        // Notification Manager channel creation
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Step Completion",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        notificationManager = getSystemService(NotificationManager.class);
+        if (notificationManager != null) {
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 
     private void checkAudioPermission() {
@@ -232,6 +252,15 @@ public class RecipeDetailActivity extends AppCompatActivity {
         });
     }
 
+
+    private void sendStepNotification(String stepText) {
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID).setSmallIcon(R.drawable.all_cook_svg).setSmallIcon(R.drawable.all_cook_svg)
+                .setContentTitle("Step Complete!")
+                .setContentText(stepText)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build();
+        notificationManager.notify(NOTIFICATION_ID, notification);
+    }
     private void playStep(Recipe.Step step) {
         textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
         Log.d("SpeechRecognition", "Playing step " + currentStepIndex + " " + step.getDescription());
@@ -248,6 +277,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         if (isAutoPlaying) {
             if (delayMillis > 0) {
                 handler.postDelayed(() -> {
+                    sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                     currentStepIndex++;
                     if (currentStepIndex < currentRecipe.getSteps().size()) {
                         playStep(currentRecipe.getSteps().get(currentStepIndex));
@@ -259,6 +289,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         if (!textToSpeech.isSpeaking()) {
+                            sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                             currentStepIndex++;
                             if (currentStepIndex < currentRecipe.getSteps().size()) {
                                 playStep(currentRecipe.getSteps().get(currentStepIndex));
