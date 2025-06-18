@@ -27,16 +27,17 @@ public class FavoriteFilterManager extends FilterManager {
         isActive = !isActive;
         uiHelper.changeButtonColor(isActive, filterButton);
 
-        Toast.makeText(context,
-                isActive ? "Favorites filter activated" : "Favorites filter deactivated",
-                Toast.LENGTH_SHORT).show();
-
-        applyFilter(isActive ? "active" : "inactive");
+        ((MainActivity) context).applyAllFilters(); // ⬅️ call centralized filtering
     }
+
 
     @Override
     public void showFilterDialog() {
         // No dialog for favorite filter - it's a simple toggle
+    }
+
+    public boolean isFilterActive() {
+        return isActive;
     }
 
     @Override

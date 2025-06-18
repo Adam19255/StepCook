@@ -10,12 +10,17 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Class to manage cook time filter functionality
  */
 public class CookTimeFilterManager extends FilterManager {
     private Context context;
     private String selectedCookTime = "All"; // Default option
+    private boolean isActive = false;
+
     private final String[] COOK_TIME_OPTIONS = {"All", "Fast", "Medium", "Long"};
 
     private final MainActivity activity;
@@ -35,6 +40,43 @@ public class CookTimeFilterManager extends FilterManager {
         if (filterDialog != null) {
             if (!filterDialog.isShowing()) {
                 filterDialog.show();
+
+                LinearLayout allBtn = filterDialog.findViewById(R.id.allCookTimes);
+                LinearLayout fastBtn = filterDialog.findViewById(R.id.fastCookTime);
+                LinearLayout mediumBtn = filterDialog.findViewById(R.id.mediumCookTime);
+                LinearLayout longBtn = filterDialog.findViewById(R.id.longCookTime);
+
+
+                View.OnClickListener listener = v -> {
+                    if (v == allBtn) {
+                        selectedCookTime = "All";
+                        isActive = false;
+                    } else if (v == fastBtn) {
+                        selectedCookTime = "Fast";
+                        isActive = true;
+                    } else if (v == mediumBtn) {
+                        selectedCookTime = "Medium";
+                        isActive = true;
+                    } else if (v == longBtn) {
+                        selectedCookTime = "Long";
+                        isActive = true;
+                    }
+
+                    uiHelper.highlightSelectedOption(
+                            allBtn, fastBtn, mediumBtn, longBtn,
+                            selectedCookTime, COOK_TIME_OPTIONS
+                    );
+
+                    uiHelper.changeButtonColor(isActive, filterButton);
+
+                    ((MainActivity) context).applyAllFilters(); // ✅ Apply all filters centrally
+                    filterDialog.dismiss();
+                };
+
+                allBtn.setOnClickListener(listener);
+                fastBtn.setOnClickListener(listener);
+                mediumBtn.setOnClickListener(listener);
+                longBtn.setOnClickListener(listener);
             }
             return;
         }
@@ -128,31 +170,48 @@ public class CookTimeFilterManager extends FilterManager {
         uiHelper.highlightSelectedOption(allCookTimes, fastCookTime, mediumCookTime,
                 longCookTime, selectedCookTime, COOK_TIME_OPTIONS);
 
-        // Apply the filter
-        applyFilter(selectedCookTime);
+        // ✅ Mark filter as active if not "All"
+        isActive = !selectedCookTime.equals("All");
+        uiHelper.changeButtonColor(isActive, filterButton);
 
-        // Close dialog and reset button
+
+        // ✅ Call the central filter logic
+        ((MainActivity) context).applyAllFilters();
+
+        // Close dialog
         closeDialog();
+    }
+
+    public boolean isFilterActive() {
+        return isActive;
+    }
+
+    public List<Recipe> applyFilter(List<Recipe> recipes) {
+        if (!isActive || selectedCookTime.equals("All")) return recipes;
+
+        List<Recipe> filtered = new ArrayList<>();
+        for (Recipe recipe : recipes) {
+            int cookTime = recipe.getTotalCookTimeMinutes();
+            switch (selectedCookTime) {
+                case "Fast":
+                    if (cookTime <= 15) filtered.add(recipe);
+                    break;
+                case "Medium":
+                    if (cookTime >= 16 && cookTime <= 45) filtered.add(recipe);
+                    break;
+                case "Long":
+                    if (cookTime >= 46) filtered.add(recipe);
+                    break;
+            }
+        }
+        return filtered;
     }
 
     @Override
     public void applyFilter(String filterValue) {
-        switch (filterValue) {
-            case "Fast":
-                activity.onCookTimeSelected(0, 15);
-                break;
-            case "Medium":
-                activity.onCookTimeSelected(16, 45);
-                break;
-            case "Long":
-                activity.onCookTimeSelected(46, Integer.MAX_VALUE);
-                break;
-            case "All":
-            default:
-                activity.onCookTimeSelected(null, null);
-                break;
-        }
+        // Optional: Keep calling MainActivity if needed
     }
+
 
 
 }

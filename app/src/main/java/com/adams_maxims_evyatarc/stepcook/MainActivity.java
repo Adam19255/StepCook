@@ -42,8 +42,9 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private RecipeAdapter recipeAdapter;
     private List<Recipe> allRecipes;
 
-    private FilterManager difficultyFilterManager;
-    private FilterManager cookTimeFilterManager;
+    private DifficultyFilterManager difficultyFilterManager;
+
+    private CookTimeFilterManager cookTimeFilterManager;
     private FavoriteFilterManager favoriteFilterManager;
     private MyRecipesFilterManager myRecipesFilterManager;
 
@@ -190,6 +191,34 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     public void onCookTimeSelected(Integer min, Integer max) {
         recipeAdapter.setCookTimeFilter(min, max);
     }
+
+    public void applyAllFilters() {
+        String currentUserId = getCurrentUserId();
+        FirebaseFirestore.getInstance()
+                .collection("Users")
+                .document(currentUserId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    List<Recipe> filtered = new ArrayList<>(allRecipes);
+
+                    // 🟢 FAVORITE FILTER
+                    if (favoriteFilterManager.isFilterActive()) {
+                        List<String> favorites = (List<String>) snapshot.get("favorites");
+                        if (favorites != null) {
+                            filtered.removeIf(recipe -> !favorites.contains(recipe.getId()));
+                        }
+                    }
+
+                    // 🟡 OTHER FILTERS
+                    filtered = difficultyFilterManager.applyFilter(filtered);
+                    filtered = cookTimeFilterManager.applyFilter(filtered);
+                    filtered = myRecipesFilterManager.applyFilter(filtered);
+
+                    // 🟠 UPDATE LIST
+                    recipeAdapter.updateList(filtered);
+                });
+    }
+
 
     public void onFavoriteFilterToggled(boolean onlyFavorites) {
         String currentUserId = getCurrentUserId(); // You already use this method

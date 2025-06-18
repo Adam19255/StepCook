@@ -4,6 +4,8 @@ import android.content.Context;
 import android.widget.Button;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
 /**
  * Class to manage user recipes filter functionality
  */
@@ -46,12 +48,31 @@ public class MyRecipesFilterManager extends FilterManager{
 
     public void setFilterActive(boolean active) {
         this.isActive = active;
+        uiHelper.changeButtonColor(isActive, filterButton);
+
+
+        // ✅ Add this:
+        ((MainActivity) context).applyAllFilters();
     }
+
+    public List<Recipe> applyFilter(List<Recipe> recipes) {
+        if (!isActive || activity.getCurrentUserId() == null) return recipes;
+
+        String currentUserId = activity.getCurrentUserId();
+
+        List<Recipe> filtered = new ArrayList<>();
+        for (Recipe recipe : recipes) {
+            if (recipe.getAuthorId().equals(currentUserId)) {
+                filtered.add(recipe);
+            }
+        }
+        return filtered;
+    }
+
 
     @Override
     public void applyFilter(String filterValue) {
-        boolean onlyMine = filterValue.equalsIgnoreCase("true");
-        activity.onMyRecipesFilterToggled(onlyMine);
+        // optional stub
     }
 
 }
