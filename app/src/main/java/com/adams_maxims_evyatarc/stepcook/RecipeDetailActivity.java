@@ -26,7 +26,6 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
@@ -174,27 +173,11 @@ public class RecipeDetailActivity extends AppCompatActivity {
             return;
         }
 
-        userManager.loadUserData(new UserManager.UserDataCallback() {
-            @Override
-            public void onUserDataLoaded(User user) {
-                isAutoPlaying = user.isAutoPlayNextStep();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Toast.makeText(RecipeDetailActivity.this, "Failed to load user settings", Toast.LENGTH_SHORT).show();
-            }
-        });
-
         initializeViews();
         setupListeners();
-        loadRecipeDetails();
         initializeTextToSpeech();
-
-        // Check and request permission before initializing speech recognition
         checkAudioPermission();
 
-        // Notification Manager channel creation
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
                 "Step Completion",
@@ -204,7 +187,26 @@ public class RecipeDetailActivity extends AppCompatActivity {
         if (notificationManager != null) {
             notificationManager.createNotificationChannel(channel);
         }
+
+        // Load user setting
+        userManager.loadUserData(new UserManager.UserDataCallback() {
+            @Override
+            public void onUserDataLoaded(User user) {
+                isAutoPlaying = user.isAutoPlayNextStep();
+                Log.d("SpeechRecognition", "Loaded autoPlayNextStep = " + isAutoPlaying);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e("SpeechRecognition", "Failed to load user preferences", e);
+                isAutoPlaying = false;
+            }
+        });
+
+        loadRecipeDetails();
+
     }
+
 
     private void checkAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -237,6 +239,8 @@ public class RecipeDetailActivity extends AppCompatActivity {
             toggleFavorite(isActive);
         });
 
+
+
         playButton.setOnClickListener(v -> {
             if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
                 Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
@@ -262,47 +266,42 @@ public class RecipeDetailActivity extends AppCompatActivity {
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
     private void playStep(Recipe.Step step) {
-        textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
-        Log.d("SpeechRecognition", "Playing step " + currentStepIndex + " " + step.getDescription());
-
-        long delayMillis = step.getTimerMinutes() != null ? step.getTimerMinutes() * 60L * 1000L : 0;
-
-        View currentStepView = stepsContainer.findViewWithTag("step_" + currentStepIndex);
-        currentStepTimerTextView = currentStepView != null ? currentStepView.findViewById(R.id.stepTimer) : null;
-
-        if (delayMillis > 0 && currentStepTimerTextView != null) {
-            startInlineCountdown(delayMillis);
-        }
-
-        if (isAutoPlaying) {
-            if (delayMillis > 0) {
-                handler.postDelayed(() -> {
-                    sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
-                    currentStepIndex++;
-                    if (currentStepIndex < currentRecipe.getSteps().size()) {
-                        playStep(currentRecipe.getSteps().get(currentStepIndex));
-                    }
-                }, delayMillis);
-            } else {
-                // No timer — wait for TTS to finish
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!textToSpeech.isSpeaking()) {
+        new Thread(() -> {
+            textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+            runOnUiThread(() -> {
+                long delayMillis = step.getTimerMinutes() != null ? step.getTimerMinutes() * 60000L : 0;
+                View currentStepView = stepsContainer.findViewWithTag("step_" + currentStepIndex);
+                currentStepTimerTextView = currentStepView != null ? currentStepView.findViewById(R.id.stepTimer) : null;
+                if (delayMillis > 0 && currentStepTimerTextView != null) startInlineCountdown(delayMillis);
+                if (isAutoPlaying) {
+                    if (delayMillis > 0) {
+                        handler.postDelayed(() -> {
                             sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                             currentStepIndex++;
                             if (currentStepIndex < currentRecipe.getSteps().size()) {
                                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                             }
-                        } else {
-                            handler.postDelayed(this, 300); // check again in 300ms
-                        }
+                        }, delayMillis);
+                    } else {
+                        handler.postDelayed(new Runnable() {
+                            @Override public void run() {
+                                if (!textToSpeech.isSpeaking()) {
+                                    sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
+                                    currentStepIndex++;
+                                    if (currentStepIndex < currentRecipe.getSteps().size()) {
+                                        playStep(currentRecipe.getSteps().get(currentStepIndex));
+                                    }
+                                } else {
+                                    handler.postDelayed(this, 300);
+                                }
+                            }
+                        }, 300);
                     }
-                }, 300);
-            }
-        } else {
-            currentStepIndex++;
-        }
+                } else {
+                    currentStepIndex++;
+                }
+            });
+        }).start();
     }
 
     private void startInlineCountdown(long millis) {
@@ -329,21 +328,27 @@ public class RecipeDetailActivity extends AppCompatActivity {
     }
 
     private void loadRecipeDetails() {
-        db.collection("Recipes").document(recipeId).get().addOnSuccessListener(doc -> {
-            if (!doc.exists()) {
-                Toast.makeText(this, "Recipe not found", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            db.collection("Recipes").document(recipeId).get().addOnSuccessListener(doc -> {
+                new Thread(() -> {
+                    if (!doc.exists()) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Recipe not found", Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                        return;
+                    }
+                    currentRecipe = doc.toObject(Recipe.class);
+                    if (currentRecipe != null) {
+                        currentRecipe.setId(doc.getId());
+                        runOnUiThread(this::displayRecipeDetails);
+                    }
+                }).start();
+            }).addOnFailureListener(e -> runOnUiThread(() -> {
+                Toast.makeText(this, "Error loading recipe: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 finish();
-                return;
-            }
-            currentRecipe = doc.toObject(Recipe.class);
-            if (currentRecipe != null) {
-                currentRecipe.setId(doc.getId());
-                displayRecipeDetails();
-            }
-        }).addOnFailureListener(e -> {
-            Toast.makeText(this, "Error loading recipe: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            finish();
-        });
+            }));
+        }).start();
     }
 
     private void displayRecipeDetails() {
