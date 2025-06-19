@@ -4,14 +4,14 @@ import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,7 +38,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private NotificationManager notificationManager;
     private static final String CHANNEL_ID = "notificaionChannel";
     private static final int NOTIFICATION_ID = 1001;
-
 
     private String recipeId;
     private Recipe currentRecipe;
@@ -59,104 +57,34 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private boolean isActive = false;
     private boolean isAutoPlaying = false;
     private int currentStepIndex = 0;
-    private boolean isListening = false;
+    private boolean isPlaying = false;
 
     private TextToSpeech textToSpeech;
     private Handler handler = new Handler();
     private CountDownTimer countDownTimer;
-    private SpeechRecognizer speechRecognizer;
-    private boolean isPlaying = false;
 
     private long remainingTimeInMillis = 0;
 
     private boolean canProcessCommand = true;
     private final long COMMAND_COOLDOWN_MS = 1500;
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    private String lastProcessedCommand = "";
+    private long lastCommandTime = 0;
+    private final long DUPLICATE_COMMAND_THRESHOLD_MS = 2000;
 
-    private final RecognitionListener recognitionListener = new RecognitionListener() {
+    // Broadcast receiver for voice commands
+    private BroadcastReceiver voiceCommandReceiver = new BroadcastReceiver() {
         @Override
-        public void onReadyForSpeech(Bundle params) {
-            Log.d("SpeechRecognition", "Ready for speech");
-            isListening = true;
-        }
-
-        @Override
-        public void onBeginningOfSpeech() {
-            Log.d("SpeechRecognition", "Beginning of speech");
-        }
-
-        @Override
-        public void onRmsChanged(float rmsdB) {
-        }
-
-        @Override
-        public void onBufferReceived(byte[] buffer) {}
-
-        @Override
-        public void onEndOfSpeech() {
-            Log.d("SpeechRecognition", "End of speech");
-            isListening = false;
-        }
-
-        @Override
-        public void onError(int error) {
-            isListening = false;
-            String message = getErrorMessage(error);
-
-            Log.e("SpeechRecognition", "Error: " + error + " - " + message);
-
-            // Only show error toast for significant errors
-            if (error != SpeechRecognizer.ERROR_NO_MATCH &&
-                    error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                Toast.makeText(RecipeDetailActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-
-            // Restart listening after a delay, but only if activity is still active
-            if (!isFinishing()) {
-                handler.postDelayed(() -> {
-                    if (!isFinishing()) {
-                        restartSpeechRecognition();
-                    }
-                }, 2000);
-            }
-        }
-
-        @Override
-        public void onResults(Bundle results) {
-            isListening = false;
-            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            if (matches != null && !matches.isEmpty()) {
-                String command = matches.get(0).toLowerCase().trim();
-                Log.d("SpeechRecognition", "Recognized: " + command);
-                handleVoiceCommand(command);
-            }
-
-            // Restart listening after processing command
-            if (!isFinishing()) {
-                handler.postDelayed(() -> {
-                    if (!isFinishing()) {
-                        restartSpeechRecognition();
-                    }
-                }, 1000);
-            }
-        }
-
-        @Override
-        public void onPartialResults(Bundle partialResults) {
-            ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            Log.d("SpeechRecognition", SpeechRecognizer.RESULTS_RECOGNITION);
-            if (matches != null && !matches.isEmpty()) {
-                for (String partial : matches) {
-                    Log.d("SpeechRecognition", "🟡 Heard (partial): " + partial);
-                    handleVoiceCommand(partial.toLowerCase(Locale.ROOT)); // ✅ Run command immediately
+        public void onReceive(Context context, Intent intent) {
+            Log.d("VoiceService", "Broadcast Trigger");
+            if (RecipeVoiceService.ACTION_VOICE_COMMAND.equals(intent.getAction())) {
+                String command = intent.getStringExtra(RecipeVoiceService.EXTRA_COMMAND);
+                if (command != null) {
+                    Log.d("VoiceService", "Command received outside: " + command);
+                    handleVoiceCommand(command);
                 }
-            } else {
-                Log.d("SpeechRecognition", "Partial Results: None");
             }
         }
-
-        @Override
-        public void onEvent(int eventType, Bundle params) {}
     };
 
     @Override
@@ -176,7 +104,13 @@ public class RecipeDetailActivity extends AppCompatActivity {
         initializeViews();
         setupListeners();
         initializeTextToSpeech();
-        checkAudioPermission();
+
+        // Register broadcast receiver for voice commands
+        IntentFilter filter = new IntentFilter(RecipeVoiceService.ACTION_VOICE_COMMAND);
+        registerReceiver(voiceCommandReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+
+        // Check permissions and start voice service
+        checkAudioPermissionAndStartService();
 
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
@@ -193,30 +127,40 @@ public class RecipeDetailActivity extends AppCompatActivity {
             @Override
             public void onUserDataLoaded(User user) {
                 isAutoPlaying = user.isAutoPlayNextStep();
-                Log.d("SpeechRecognition", "Loaded autoPlayNextStep = " + isAutoPlaying);
+                Log.d("RecipeDetailActivity", "Loaded autoPlayNextStep = " + isAutoPlaying);
             }
 
             @Override
             public void onError(Exception e) {
-                Log.e("SpeechRecognition", "Failed to load user preferences", e);
+                Log.e("RecipeDetailActivity", "Failed to load user preferences", e);
                 isAutoPlaying = false;
             }
         });
 
         loadRecipeDetails();
-
     }
 
-
-    private void checkAudioPermission() {
+    private void checkAudioPermissionAndStartService() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.RECORD_AUDIO},
                     REQUEST_RECORD_AUDIO_PERMISSION);
         } else {
-            initializeSpeechRecognition();
+            startVoiceService();
         }
+    }
+
+    private void startVoiceService() {
+        Intent serviceIntent = new Intent(this, RecipeVoiceService.class);
+        startService(serviceIntent);
+        Log.d("RecipeDetailActivity", "Voice service started");
+    }
+
+    private void stopVoiceService() {
+        Intent serviceIntent = new Intent(this, RecipeVoiceService.class);
+        stopService(serviceIntent);
+        Log.d("RecipeDetailActivity", "Voice service stopped");
     }
 
     private void initializeViews() {
@@ -239,8 +183,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
             toggleFavorite(isActive);
         });
 
-
-
         playButton.setOnClickListener(v -> {
             if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
                 Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
@@ -250,23 +192,24 @@ public class RecipeDetailActivity extends AppCompatActivity {
             if(!isPlaying) {
                 isPlaying = !isPlaying;
                 Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
-
             }
             playStep(currentRecipe.getSteps().get(currentStepIndex));
         });
     }
 
-
     private void sendStepNotification(String stepText) {
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID).setSmallIcon(R.drawable.all_cook_svg).setSmallIcon(R.drawable.all_cook_svg)
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.all_cook_svg)
                 .setContentTitle("Step Complete!")
                 .setContentText(stepText)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build();
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
+
     private void playStep(Recipe.Step step) {
         new Thread(() -> {
+            Log.d("VoiceService", "playing step " + currentStepIndex);
             textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
             runOnUiThread(() -> {
                 long delayMillis = step.getTimerMinutes() != null ? step.getTimerMinutes() * 60000L : 0;
@@ -284,7 +227,8 @@ public class RecipeDetailActivity extends AppCompatActivity {
                         }, delayMillis);
                     } else {
                         handler.postDelayed(new Runnable() {
-                            @Override public void run() {
+                            @Override
+                            public void run() {
                                 if (!textToSpeech.isSpeaking()) {
                                     sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                                     currentStepIndex++;
@@ -297,8 +241,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
                             }
                         }, 300);
                     }
-                } else {
-                    currentStepIndex++;
                 }
             });
         }).start();
@@ -311,7 +253,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
         countDownTimer = new CountDownTimer(millis, 1000) {
             public void onTick(long millisUntilFinished) {
-                remainingTimeInMillis = millisUntilFinished; // 💾 Save remaining time
+                remainingTimeInMillis = millisUntilFinished;
                 long minutes = millisUntilFinished / 60000;
                 long seconds = (millisUntilFinished / 1000) % 60;
                 if (currentStepTimerTextView != null) {
@@ -411,7 +353,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 int result = textToSpeech.setLanguage(Locale.getDefault());
                 if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Log.e("TTS", "Language not supported");
-                    // Try English as fallback
                     textToSpeech.setLanguage(Locale.ENGLISH);
                 }
             } else {
@@ -420,98 +361,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         });
     }
 
-    private void initializeSpeechRecognition() {
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "Speech recognition not available on this device", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        try {
-            if (speechRecognizer != null) {
-                speechRecognizer.destroy();
-            }
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-            if (speechRecognizer == null) {
-                Log.e("SpeechRecognition", "Failed to create SpeechRecognizer");
-                Toast.makeText(this, "Failed to initialize speech recognition", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            speechRecognizer.setRecognitionListener(recognitionListener);
-            startSpeechRecognition();
-
-            Log.d("SpeechRecognition", "Speech recognition initialized successfully");
-        } catch (Exception e) {
-            Log.e("SpeechRecognition", "Error initializing speech recognition", e);
-            Toast.makeText(this, "Error setting up voice commands", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void startSpeechRecognition() {
-        if (speechRecognizer == null || isListening) {
-            return;
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            Log.w("SpeechRecognition", "Audio permission not granted");
-            return;
-        }
-
-        try {
-            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
-            intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
-            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
-            intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-            // Add these for better recognition
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
-            intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000);
-
-
-            speechRecognizer.startListening(intent);
-            Log.d("SpeechRecognition", "Started listening");
-        } catch (Exception e) {
-            Log.e("SpeechRecognition", "Error starting speech recognition", e);
-            isListening = false;
-        }
-    }
-
-    private void restartSpeechRecognition() {
-        if (speechRecognizer != null && !isListening && !isFinishing()) {
-            startSpeechRecognition();
-        }
-    }
-
-    private String getErrorMessage(int error) {
-        switch (error) {
-            case SpeechRecognizer.ERROR_AUDIO:
-                return "Audio recording error";
-            case SpeechRecognizer.ERROR_CLIENT:
-                return "Client side error";
-            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                return "Insufficient permissions";
-            case SpeechRecognizer.ERROR_NETWORK:
-                return "Network error";
-            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                return "Network timeout";
-            case SpeechRecognizer.ERROR_NO_MATCH:
-                return "No match found";
-            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                return "Recognition service busy";
-            case SpeechRecognizer.ERROR_SERVER:
-                return "Server error";
-            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                return "No speech input";
-            default:
-                return "Unknown error (" + error + ")";
-        }
-    }
-
-
     private void stopStep() {
-        // Stop timer but don't reset remainingTimeInMillis
         if (countDownTimer != null) {
             countDownTimer.cancel();
             countDownTimer = null;
@@ -527,29 +377,42 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 currentStepIndex >= 0 &&
                 currentStepIndex < currentRecipe.getSteps().size()) {
 
-            stopStep(); // Stop TTS and timer
+            stopStep();
 
             Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
             remainingTimeInMillis = step.getTimerMinutes() != null
                     ? step.getTimerMinutes() * 60L * 1000L
                     : 0;
 
-            // Speak step again
             textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
         }
     }
 
     private void handleVoiceCommand(String command) {
+        if (command == null || command.trim().isEmpty()) {
+            return;
+        }
+
+        // Check for duplicate commands within threshold
+        long currentTime = System.currentTimeMillis();
+        if (command.equals(lastProcessedCommand) &&
+                (currentTime - lastCommandTime) < DUPLICATE_COMMAND_THRESHOLD_MS) {
+            Log.d("VoiceService", "Ignoring duplicate command: " + command);
+            return;
+        }
+
         if (!canProcessCommand) return;
+        canProcessCommand = false;
         handler.postDelayed(() -> canProcessCommand = true, COMMAND_COOLDOWN_MS);
 
-        Log.d("SpeechRecognition", "💻 Processing command: " + command);
+        // Store command info for duplicate detection
+        lastProcessedCommand = command;
+        lastCommandTime = currentTime;
+
+        Log.d("VoiceService", "💻 Processing command: " + command);
 
         if (command.contains("next")) {
-            resetStep(); // Stop current timer and reset display
-            canProcessCommand = false;
-
-            // Move to next step first
+            resetStep();
             currentStepIndex++;
 
             if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
@@ -557,48 +420,43 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Next step", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "No more steps", Toast.LENGTH_SHORT).show();
-                // Reset to last valid step if we went too far
                 currentStepIndex = Math.max(0, currentRecipe.getSteps().size() - 1);
             }
         } else if (command.contains("previous") || command.contains("back")) {
-            canProcessCommand = false;
-            resetStep(); // Stop current timer and reset display
+            Log.d("VoiceService", "Current step is " + currentStepIndex);
+            resetStep();
+            Log.d("VoiceService", "Current step after reset " + currentStepIndex);
             if (currentStepIndex > 0) {
-                resetStep();
                 currentStepIndex--;
+                Log.d("VoiceService", "Current step after decrease " + currentStepIndex);
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Previous step", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Already at first step", Toast.LENGTH_SHORT).show();
             }
         } else if (command.contains("pause") || command.contains("stop")) {
-            canProcessCommand = false;
-            stopStep(); // This will stop and reset the timer
+            stopStep();
             Toast.makeText(this, "Stopped", Toast.LENGTH_SHORT).show();
         } else if (command.contains("resume") || command.contains("continue")) {
-            canProcessCommand = false;
             if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
-                startInlineCountdown(remainingTimeInMillis); // ▶️ Resume countdown
+                startInlineCountdown(remainingTimeInMillis);
                 Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
-                textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null); // Optional: resume speech
+                textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
                 Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Nothing to resume", Toast.LENGTH_SHORT).show();
             }
         } else if (command.contains("favorite")) {
-            canProcessCommand = false;
             isActive = !isActive;
             toggleFavorite(isActive);
             Toast.makeText(this, isActive ? "Added to favorites" : "Removed from favorites", Toast.LENGTH_SHORT).show();
         } else if (command.contains("repeat") || command.contains("again")) {
-            resetStep(); // Stop current timer first
+            resetStep();
             if (currentRecipe != null && currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
                 playStep(currentRecipe.getSteps().get(currentStepIndex));
                 Toast.makeText(this, "Repeating current step", Toast.LENGTH_SHORT).show();
             }
         } else if(command.contains("play")) {
-            canProcessCommand = false;
-
             Toast.makeText(this, "Playing recipe", Toast.LENGTH_SHORT).show();
             if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
                 Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
@@ -610,50 +468,42 @@ public class RecipeDetailActivity extends AppCompatActivity {
             }
             playStep(currentRecipe.getSteps().get(currentStepIndex));
         } else if (command.contains("restart")) {
-            canProcessCommand = false;
             Toast.makeText(this, "Restarting recipe", Toast.LENGTH_SHORT).show();
-
             currentStepIndex = 0;
             resetStep();
             playStep(currentRecipe.getSteps().get(currentStepIndex));
-        }
-          else {
-            Log.d("SpeechRecognition", "Unknown command: " + command);
-            // Don't show toast for unknown commands to avoid spam
+        } else {
+            Log.d("RecipeDetailActivity", "Unknown command: " + command);
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (speechRecognizer != null && isListening) {
-            speechRecognizer.stopListening();
-            isListening = false;
-        }
+        // Service continues running in background
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (speechRecognizer != null && !isListening) {
-            handler.postDelayed(() -> restartSpeechRecognition(), 500);
-        }
+        // Service automatically continues listening
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
+        // Unregister broadcast receiver
+        if (voiceCommandReceiver != null) {
+            unregisterReceiver(voiceCommandReceiver);
+        }
+
+        // Stop voice service
+        stopVoiceService();
+
         if (textToSpeech != null) {
             textToSpeech.stop();
             textToSpeech.shutdown();
-        }
-
-        if (speechRecognizer != null) {
-            speechRecognizer.stopListening();
-            speechRecognizer.cancel();
-            speechRecognizer.destroy();
-            speechRecognizer = null;
         }
 
         if (countDownTimer != null) {
@@ -663,8 +513,6 @@ public class RecipeDetailActivity extends AppCompatActivity {
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
-
-        isListening = false;
     }
 
     @Override
@@ -673,7 +521,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Voice commands enabled", Toast.LENGTH_SHORT).show();
-                initializeSpeechRecognition();
+                startVoiceService();
             } else {
                 Toast.makeText(this, "Microphone permission required for voice commands", Toast.LENGTH_LONG).show();
             }
