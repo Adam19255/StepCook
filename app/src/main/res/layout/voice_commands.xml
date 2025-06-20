@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="380dp"
     android:layout_height="wrap_content"
+    android:minWidth="250dp"
     android:orientation="vertical"
     android:background="@drawable/rounded_dialog_background"
-    android:padding="20dp">
+    android:padding="24dp">
 
     <!-- Title -->
     <TextView
@@ -22,71 +23,68 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="300dp">
+        android:maxHeight="400dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:divider="?android:attr/dividerVertical"
-            android:showDividers="middle"
-            android:dividerPadding="8dp">
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• next — go to the next step"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• previous / back — go to previous step"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• pause / stop — stop the timer and narration"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• resume / continue — resume timer and voice"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• repeat / again — repeat the current step"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• play — play or resume the recipe"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="• restart — restart the recipe from beginning"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
         </LinearLayout>
     </ScrollView>
 

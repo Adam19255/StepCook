@@ -2,6 +2,8 @@ package com.adams_maxims_evyatarc.stepcook;
 
 import android.app.Dialog;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -70,15 +72,19 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
             updateUserPreference("autoPlayNextStep", isChecked);
         });
 
+//        voiceSettings.setOnClickListener(v -> Toast.makeText(this, "Voice settings not implemented yet", Toast.LENGTH_SHORT).show());
         voiceSettings.setOnClickListener(v -> {
-            Dialog dialog = new Dialog(this);
+            Dialog dialog = new Dialog(SettingsActivity.this); // or `this` if inside activity
             dialog.setContentView(R.layout.voice_commands);
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
             Button closeButton = dialog.findViewById(R.id.closeVoiceDialogButton);
             closeButton.setOnClickListener(btn -> dialog.dismiss());
 
             dialog.show();
         });
+
+//        timerSettings.setOnClickListener(v -> Toast.makeText(this, "Timer settings not implemented yet", Toast.LENGTH_SHORT).show());
 
         timerSettings.setOnClickListener(v -> {
             DefaultTimerDialog dialog = new DefaultTimerDialog(this);
