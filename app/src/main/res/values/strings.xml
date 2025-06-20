@@ -94,4 +94,5 @@
     <string name="play_button">Play Button</string>
     <string name="steps">Steps</string>
     <string name="no_results">No matching results</string>
+    <string name="delete_recipe">Delete Recipe</string>
 </resources>
