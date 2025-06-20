@@ -181,7 +181,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
 
     private void handleIncomingCallInterruption(String message) {
         // Pause current step and timer
-        pauseCurrentStep();
+        stopStep();
         isPausedByInterruption = true;
 
         // Show alert dialog with options
@@ -229,7 +229,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
                     }
                 })
                 .setNegativeButton("Pause", (dialog, which) -> {
-                    pauseCurrentStep();
+                    stopStep();
                     isPausedByInterruption = true;
                 })
                 .show();
@@ -307,32 +307,14 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         }
     }
 
-    private void pauseCurrentStep() {
-        if (textToSpeech != null && textToSpeech.isSpeaking()) {
-            textToSpeech.stop();
-        }
-
-        // Don't cancel the timer, just note the remaining time
-        if (countDownTimer != null) {
-            // Timer continues running but we mark as paused for user awareness
-            Log.d("RecipeDetailActivity", "Step paused with " + remainingTimeInMillis + "ms remaining");
-        }
-    }
-
     private void resumeCurrentStep() {
-        if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
-            Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
-
-            // Resume TTS
-            textToSpeech.speak(currentStep.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
-
-            // Resume timer if there was remaining time
-            if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
-                startInlineCountdown(remainingTimeInMillis);
-            }
+        if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
+            startInlineCountdown(remainingTimeInMillis);
+            Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
+            textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+            Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
         }
     }
-
     private void showInterruptionNotification(String title, String message) {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.all_cook_svg)
@@ -648,14 +630,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
             stopStep();
             Toast.makeText(this, "Stopped", Toast.LENGTH_SHORT).show();
         } else if (command.contains("resume") || command.contains("continue")) {
-            if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
-                startInlineCountdown(remainingTimeInMillis);
-                Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
-                textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
-                Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Nothing to resume", Toast.LENGTH_SHORT).show();
-            }
+            resumeCurrentStep();
         } else if (command.contains("favorite")) {
             isActive = !isActive;
             toggleFavorite(isActive);
