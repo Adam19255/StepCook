@@ -1,9 +1,11 @@
 package com.adams_maxims_evyatarc.stepcook;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -68,9 +70,15 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
             updateUserPreference("autoPlayNextStep", isChecked);
         });
 
-        voiceSettings.setOnClickListener(v -> Toast.makeText(this, "Voice settings not implemented yet", Toast.LENGTH_SHORT).show());
+        voiceSettings.setOnClickListener(v -> {
+            Dialog dialog = new Dialog(this);
+            dialog.setContentView(R.layout.voice_commands);
 
-//        timerSettings.setOnClickListener(v -> Toast.makeText(this, "Timer settings not implemented yet", Toast.LENGTH_SHORT).show());
+            Button closeButton = dialog.findViewById(R.id.closeVoiceDialogButton);
+            closeButton.setOnClickListener(btn -> dialog.dismiss());
+
+            dialog.show();
+        });
 
         timerSettings.setOnClickListener(v -> {
             DefaultTimerDialog dialog = new DefaultTimerDialog(this);
