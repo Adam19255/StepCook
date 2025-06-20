@@ -70,9 +70,16 @@ public class TimerDialog extends Dialog {
                 minutePicker.setValue(0);
             }
         } else {
-            // Default values if no timer is set
-            hourPicker.setValue(0);
-            minutePicker.setValue(0);
+            // Default values from preference
+            // Load default timer from UserManager if available
+            User user = UserManager.getInstance().getCurrentUser();
+            if (user != null) {
+                hourPicker.setValue(user.getDefaultTimerHours());
+                minutePicker.setValue(user.getDefaultTimerMinutes());
+            } else {
+                hourPicker.setValue(0);
+                minutePicker.setValue(0);
+            }
         }
 
         setButton = findViewById(R.id.setTimerButton);
