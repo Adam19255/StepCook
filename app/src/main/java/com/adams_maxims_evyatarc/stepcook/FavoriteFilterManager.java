@@ -2,7 +2,6 @@ package com.adams_maxims_evyatarc.stepcook;
 
 import android.content.Context;
 import android.widget.Button;
-import android.widget.Toast;
 
 /**
  * Class to manage favorite filter functionality
@@ -45,13 +44,5 @@ public class FavoriteFilterManager extends FilterManager {
         boolean onlyFavs = filterValue.equalsIgnoreCase("active");
 
         activity.onFavoriteFilterToggled(onlyFavs);
-    }
-
-
-    /**
-     * Get current filter state
-     */
-    public boolean isActive() {
-        return isActive;
     }
 }

@@ -2,7 +2,6 @@ package com.adams_maxims_evyatarc.stepcook;
 
 import android.content.Context;
 import android.widget.Button;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,21 +19,6 @@ public class MyRecipesFilterManager extends FilterManager{
         super(filterButton, uiHelper);
         this.activity = activity;
         this.context = activity;
-    }
-
-
-    /**
-     * Toggle the my recipes filter on/off
-     */
-    public void toggleFilter() {
-        isActive = !isActive;
-        uiHelper.changeButtonColor(isActive, filterButton);
-
-        Toast.makeText(context,
-                isActive ? "My recipes filter activated" : "My recipes filter deactivated",
-                Toast.LENGTH_SHORT).show();
-
-        applyFilter(isActive ? "active" : "inactive");
     }
 
     @Override
@@ -72,7 +56,7 @@ public class MyRecipesFilterManager extends FilterManager{
 
     @Override
     public void applyFilter(String filterValue) {
-        // optional stub
+        // no implementation needed here
     }
 
 }

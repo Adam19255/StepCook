@@ -8,7 +8,6 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,6 @@ public class CookTimeFilterManager extends FilterManager {
         this.context = activity;
     }
 
-
     @Override
     public void showFilterDialog() {
         uiHelper.changeButtonColor(true, filterButton);
@@ -45,7 +43,6 @@ public class CookTimeFilterManager extends FilterManager {
                 LinearLayout fastBtn = filterDialog.findViewById(R.id.fastCookTime);
                 LinearLayout mediumBtn = filterDialog.findViewById(R.id.mediumCookTime);
                 LinearLayout longBtn = filterDialog.findViewById(R.id.longCookTime);
-
 
                 View.OnClickListener listener = v -> {
                     if (v == allBtn) {
@@ -114,7 +111,7 @@ public class CookTimeFilterManager extends FilterManager {
             @Override
             public void onCancel(DialogInterface dialog) {
                 // Reset button color when dialog is dismissed by clicking outside
-                uiHelper.changeButtonColor(false, filterButton);
+                uiHelper.changeButtonColor(isActive, filterButton);
             }
         });
 
@@ -129,7 +126,6 @@ public class CookTimeFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedCookTime = COOK_TIME_OPTIONS[0]; // "All"
                 handleCookTimeSelection(allCookTimes, fastCookTime, mediumCookTime, longCookTime);
-                Toast.makeText(context, "All cook times selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -138,7 +134,6 @@ public class CookTimeFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedCookTime = COOK_TIME_OPTIONS[1]; // "Fast"
                 handleCookTimeSelection(allCookTimes, fastCookTime, mediumCookTime, longCookTime);
-                Toast.makeText(context, "Fast cook time selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -147,7 +142,6 @@ public class CookTimeFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedCookTime = COOK_TIME_OPTIONS[2]; // "Medium"
                 handleCookTimeSelection(allCookTimes, fastCookTime, mediumCookTime, longCookTime);
-                Toast.makeText(context, "Medium cook time selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -156,7 +150,6 @@ public class CookTimeFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedCookTime = COOK_TIME_OPTIONS[3]; // "Long"
                 handleCookTimeSelection(allCookTimes, fastCookTime, mediumCookTime, longCookTime);
-                Toast.makeText(context, "Long cook time selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -174,16 +167,11 @@ public class CookTimeFilterManager extends FilterManager {
         isActive = !selectedCookTime.equals("All");
         uiHelper.changeButtonColor(isActive, filterButton);
 
-
         // ✅ Call the central filter logic
         ((MainActivity) context).applyAllFilters();
 
         // Close dialog
         closeDialog();
-    }
-
-    public boolean isFilterActive() {
-        return isActive;
     }
 
     public List<Recipe> applyFilter(List<Recipe> recipes) {
@@ -211,7 +199,4 @@ public class CookTimeFilterManager extends FilterManager {
     public void applyFilter(String filterValue) {
         // Optional: Keep calling MainActivity if needed
     }
-
-
-
 }
