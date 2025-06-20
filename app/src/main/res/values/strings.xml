@@ -80,6 +80,7 @@
     <string name="saving">Saving recipe…</string>
     <string name="close_button">Close Button</string>
     <string name="set_timer">Set Timer</string>
+    <string name="default_timer">Set Default Timer</string>
     <string name="hours">Hours</string>
     <string name="minutes">Minutes</string>
     <string name="set">Set</string>

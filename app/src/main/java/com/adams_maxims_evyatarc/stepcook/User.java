@@ -11,6 +11,9 @@ public class User {
     private boolean notificationsEnabled;
     private boolean autoPlayNextStep;
 
+    private int defaultTimerHours = 0;
+    private int defaultTimerMinutes = 5;
+
     // Default constructor required for Firestore
     public User() {
         // Initialize with default values
@@ -68,7 +71,21 @@ public class User {
     public void setAutoPlayNextStep(boolean autoPlayNextStep) {
         this.autoPlayNextStep = autoPlayNextStep;
     }
+    public int getDefaultTimerHours() {
+        return defaultTimerHours;
+    }
 
+    public void setDefaultTimerHours(int defaultTimerHours) {
+        this.defaultTimerHours = defaultTimerHours;
+    }
+
+    public int getDefaultTimerMinutes() {
+        return defaultTimerMinutes;
+    }
+
+    public void setDefaultTimerMinutes(int defaultTimerMinutes) {
+        this.defaultTimerMinutes = defaultTimerMinutes;
+    }
     /**
      * Creates a Map of user data suitable for saving to Firestore
      * @return Map containing user data fields
@@ -79,6 +96,9 @@ public class User {
         userData.put("email", email);
         userData.put("notificationsEnabled", notificationsEnabled);
         userData.put("autoPlayNextStep", autoPlayNextStep);
+        userData.put("defaultTimerHours", defaultTimerHours);
+        userData.put("defaultTimerMinutes", defaultTimerMinutes);
         return userData;
     }
+
 }
