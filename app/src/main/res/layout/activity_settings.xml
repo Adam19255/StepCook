@@ -160,29 +160,19 @@
                         android:layout_width="40dp"
                         android:layout_height="40dp"
                         android:layout_centerVertical="true"
-<<<<<<< HEAD
                         android:contentDescription="@string/voice_commands"
                         android:src="@drawable/voice_svg"
-=======
->>>>>>> 02e8cfe5a32c6ac3ac3c63cb8777abef716de298
                         android:background="@drawable/round_voice_background"
-                        android:contentDescription="@string/voice_commands"
-                        android:padding="12dp"
-                        android:src="@drawable/voice_svg" />
+                        android:padding="12dp"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_centerVertical="true"
-<<<<<<< HEAD
                         android:text="@string/voice_commands"
                         android:textColor="@color/black"
-=======
-                        android:layout_marginStart="15dp"
->>>>>>> 02e8cfe5a32c6ac3ac3c63cb8777abef716de298
                         android:layout_toEndOf="@+id/voiceIcon"
-                        android:text="@string/voice_commands"
-                        android:textColor="@color/black" />
+                        android:layout_marginStart="15dp"/>
 
                     <ImageView
                         android:layout_width="wrap_content"
