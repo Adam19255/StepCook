@@ -26,7 +26,7 @@ public class FavoriteFilterManager extends FilterManager {
         isActive = !isActive;
         uiHelper.changeButtonColor(isActive, filterButton);
 
-        ((MainActivity) context).applyAllFilters(); // ⬅️ call centralized filtering
+        ((MainActivity) context).applyAllFilters(); // Call centralized filtering
     }
 
 

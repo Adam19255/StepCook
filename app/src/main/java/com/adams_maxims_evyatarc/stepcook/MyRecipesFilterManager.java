@@ -33,9 +33,6 @@ public class MyRecipesFilterManager extends FilterManager{
     public void setFilterActive(boolean active) {
         this.isActive = active;
         uiHelper.changeButtonColor(isActive, filterButton);
-
-
-        // ✅ Add this:
         ((MainActivity) context).applyAllFilters();
     }
 

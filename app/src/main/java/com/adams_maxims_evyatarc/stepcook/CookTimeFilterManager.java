@@ -66,7 +66,7 @@ public class CookTimeFilterManager extends FilterManager {
 
                     uiHelper.changeButtonColor(isActive, filterButton);
 
-                    ((MainActivity) context).applyAllFilters(); // ✅ Apply all filters centrally
+                    ((MainActivity) context).applyAllFilters(); // Apply all filters centrally
                     filterDialog.dismiss();
                 };
 
@@ -163,11 +163,11 @@ public class CookTimeFilterManager extends FilterManager {
         uiHelper.highlightSelectedOption(allCookTimes, fastCookTime, mediumCookTime,
                 longCookTime, selectedCookTime, COOK_TIME_OPTIONS);
 
-        // ✅ Mark filter as active if not "All"
+        // Mark filter as active if not "All"
         isActive = !selectedCookTime.equals("All");
         uiHelper.changeButtonColor(isActive, filterButton);
 
-        // ✅ Call the central filter logic
+        // Call the central filter logic
         ((MainActivity) context).applyAllFilters();
 
         // Close dialog

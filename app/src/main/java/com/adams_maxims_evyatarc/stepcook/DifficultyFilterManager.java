@@ -66,7 +66,7 @@ public class DifficultyFilterManager extends FilterManager {
 
                     uiHelper.changeButtonColor(isActive, filterButton);
 
-                    ((MainActivity) context).applyAllFilters(); // ✅ Apply all filters centrally
+                    ((MainActivity) context).applyAllFilters(); // Apply all filters centrally
                     filterDialog.dismiss();
                 };
 
@@ -163,11 +163,11 @@ public class DifficultyFilterManager extends FilterManager {
         uiHelper.highlightSelectedOption(allDifficulties, easyDifficulty, mediumDifficulty,
                 hardDifficulty, selectedDifficulty, DIFFICULTY_OPTIONS);
 
-        // ✅ Mark filter as active if not "All"
+        // Mark filter as active if not "All"
         isActive = !selectedDifficulty.equals("All");
         uiHelper.changeButtonColor(isActive, filterButton);
 
-        // ✅ Call the central filter logic
+        // Call the central filter logic
         ((MainActivity) context).applyAllFilters();
 
         // Close dialog

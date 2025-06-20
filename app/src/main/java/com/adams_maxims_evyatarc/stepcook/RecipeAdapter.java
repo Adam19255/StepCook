@@ -31,8 +31,6 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
     private boolean onlyFavorites = false;
 
 
-
-
     public RecipeAdapter(Context context) {
         this.context = context;
     }
@@ -66,18 +64,10 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         filter(searchInputText);
     }
 
-
-
     public void setDifficultyFilter(String difficulty) {
         this.activeDifficultyFilter = difficulty;
         filter(searchInputText); // searchInputText is tracked from the EditText
     }
-
-    public void setFavoritesFilter(boolean active) {
-        this.onlyFavorites = active;
-        filter(searchInputText);
-    }
-
 
     public void setFavoriteRecipeIds(List<String> ids) {
         this.favoriteRecipeIds = ids != null ? ids : new ArrayList<>();
@@ -89,9 +79,6 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
         this.filteredList.addAll(newList);
         notifyDataSetChanged();
     }
-
-
-
 
     public void clearDifficultyFilter() {
         this.activeDifficultyFilter = null;
@@ -126,12 +113,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.ViewHolder
             if (matchesQuery && matchesDifficulty && matchesCookTime && matchesMine && matchesFavorites) {
                 filteredList.add(recipe);
             }
-
-
-
         }
-
-
         notifyDataSetChanged();
     }
 

@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
+import android.widget.TextView;
 import android.widget.Toast;
 import com.google.firebase.auth.FirebaseAuth;
 import androidx.appcompat.app.AppCompatActivity;
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private ImageView addRecipeButton;
     private RecyclerView recipeRecyclerView;
     private FrameLayout loadingLayout;
+    private TextView noResultsText;
 
     private RecipeAdapter recipeAdapter;
     private List<Recipe> allRecipes;
@@ -64,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         setupRecyclerView();
         setupClickListeners();
 
-        // 🔄 Load favorites first, then recipes
+        // Load favorites first, then recipes
         loadFavoriteRecipesAndThenLoadRecipes();
     }
 
@@ -79,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         addRecipeButton = findViewById(R.id.addRecipeButton);
         recipeRecyclerView = findViewById(R.id.recipeRecyclerView);
         loadingLayout = findViewById(R.id.loadingLayout);
+        noResultsText = findViewById(R.id.noResultsText);
 
         searchInput.clearFocus();
 
@@ -149,6 +152,9 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                 allRecipes = recipes;
                 recipeAdapter.setRecipes(allRecipes);
                 hideLoading();
+
+                // Reapply filters after loading recipes
+                applyAllFilters();
             }
 
             @Override
@@ -182,17 +188,12 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         return false;
     }
 
-    public void onDifficultySelected(String difficulty) {
-        recipeAdapter.setDifficultyFilter(difficulty);
-    }
-
-
-
-    public void onCookTimeSelected(Integer min, Integer max) {
-        recipeAdapter.setCookTimeFilter(min, max);
-    }
-
     public void applyAllFilters() {
+        // Check if recipes are loaded first
+        if (allRecipes == null || allRecipes.isEmpty()) {
+            return;
+        }
+
         String currentUserId = getCurrentUserId();
         FirebaseFirestore.getInstance()
                 .collection("Users")
@@ -201,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                 .addOnSuccessListener(snapshot -> {
                     List<Recipe> filtered = new ArrayList<>(allRecipes);
 
-                    // 🟢 FAVORITE FILTER
+                    // FAVORITE FILTER
                     if (favoriteFilterManager.isFilterActive()) {
                         List<String> favorites = (List<String>) snapshot.get("favorites");
                         if (favorites != null) {
@@ -209,16 +210,26 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                         }
                     }
 
-                    // 🟡 OTHER FILTERS
+                    // OTHER FILTERS
                     filtered = difficultyFilterManager.applyFilter(filtered);
                     filtered = cookTimeFilterManager.applyFilter(filtered);
                     filtered = myRecipesFilterManager.applyFilter(filtered);
 
-                    // 🟠 UPDATE LIST
+                    // Show/hide "No results" message
+                    updateNoResultsVisibility(filtered.isEmpty());
+
+                    // UPDATE LIST
                     recipeAdapter.updateList(filtered);
                 });
     }
 
+    // Method to show/hide "No results" message
+    private void updateNoResultsVisibility(boolean showNoResults) {
+        if (noResultsText != null) {
+            noResultsText.setVisibility(showNoResults ? View.VISIBLE : View.GONE);
+        }
+        recipeRecyclerView.setVisibility(showNoResults ? View.GONE : View.VISIBLE);
+    }
 
     public void onFavoriteFilterToggled(boolean onlyFavorites) {
         String currentUserId = getCurrentUserId(); // You already use this method
@@ -233,16 +244,19 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                         if (favorites == null) favorites = new ArrayList<>();
 
                         if (onlyFavorites) {
-                            // 🔽 Filter to only show recipes in favorites
+                            // Filter to only show recipes in favorites
                             List<Recipe> filtered = new ArrayList<>();
                             for (Recipe recipe : allRecipes) {
                                 if (favorites.contains(recipe.getId())) {
                                     filtered.add(recipe);
                                 }
                             }
+                            // Show/hide "No results" message
+                            updateNoResultsVisibility(filtered.isEmpty());
                             recipeAdapter.updateList(filtered);
                         } else {
-                            // 🔄 Show all
+                            // Show/hide "No results" message
+                            updateNoResultsVisibility(allRecipes.isEmpty());
                             recipeAdapter.updateList(allRecipes);
                         }
                     }
@@ -265,7 +279,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                             recipeAdapter.setFavoriteRecipeIds(new ArrayList<>());
                         }
 
-                        // ✅ Now that favorites are set, load recipes
+                        // Now that favorites are set, load recipes
                         loadRecipes();
                     })
                     .addOnFailureListener(e -> {
@@ -276,7 +290,6 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
             loadRecipes(); // Not logged in? Still load recipes
         }
     }
-
 
 
     public void onMyRecipesFilterToggled(boolean onlyMine) {
@@ -315,22 +328,29 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                             favorites.add(recipeId);
                         }
 
-                        List<String> updatedFavorites = new ArrayList<>(favorites); // ✅ final copy
+                        List<String> updatedFavorites = new ArrayList<>(favorites); // final copy
 
                         snapshot.getReference().update("favorites", updatedFavorites)
                                 .addOnSuccessListener(unused -> {
-                                    // ✅ Update adapter with latest list
+                                    // Update adapter with latest list
                                     recipeAdapter.setFavoriteRecipeIds(updatedFavorites);
+
+                                    // Reapply filters after favorite change
+                                    applyAllFilters();
                                 });
                     }
                 });
     }
 
 
-
     @Override
     protected void onResume() {
         super.onResume();
-        loadRecipes();
+        // Only reload if we don't have recipes yet, otherwise just reapply filters
+        if (allRecipes == null || allRecipes.isEmpty()) {
+            loadRecipes();
+        } else {
+            applyAllFilters();
+        }
     }
 }
