@@ -70,8 +70,12 @@ public class SettingsActivity extends AppCompatActivity implements DialogManager
 
         voiceSettings.setOnClickListener(v -> Toast.makeText(this, "Voice settings not implemented yet", Toast.LENGTH_SHORT).show());
 
-        timerSettings.setOnClickListener(v -> Toast.makeText(this, "Timer settings not implemented yet", Toast.LENGTH_SHORT).show());
+//        timerSettings.setOnClickListener(v -> Toast.makeText(this, "Timer settings not implemented yet", Toast.LENGTH_SHORT).show());
 
+        timerSettings.setOnClickListener(v -> {
+            DefaultTimerDialog dialog = new DefaultTimerDialog(this);
+            dialog.show();
+        });
         aboutUsButton.setOnClickListener(v -> dialogManager.showAboutDialog());
 
         logoutButton.setOnClickListener(new View.OnClickListener() {

@@ -119,6 +119,11 @@ public class UserManager {
                         user.setNotificationsEnabled(notificationsEnabled != null ? notificationsEnabled : true);
                         user.setAutoPlayNextStep(autoPlayNextStep != null ? autoPlayNextStep : true);
 
+                        Long timerHours = document.getLong("defaultTimerHours");
+                        Long timerMinutes = document.getLong("defaultTimerMinutes");
+                        user.setDefaultTimerHours(timerHours != null ? timerHours.intValue() : 0);
+                        user.setDefaultTimerMinutes(timerMinutes != null ? timerMinutes.intValue() : 0);
+
                         // Cache the user
                         currentUser = user;
 
@@ -142,7 +147,7 @@ public class UserManager {
      * @param value The new value
      * @param callback Callback for operation result
      */
-    public void updateUserPreference(String preferenceKey, boolean value, final UserOperationCallback callback) {
+    public void updateUserPreference(String preferenceKey, Object value, final UserOperationCallback callback) {
         String userId = getCurrentUserId();
         if (userId == null) {
             callback.onError(new Exception("No user is logged in"));
@@ -154,28 +159,32 @@ public class UserManager {
 
         db.collection(USERS_COLLECTION).document(userId)
                 .update(updates)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        // Update the cached user data
-                        if (currentUser != null) {
-                            if (preferenceKey.equals("notificationsEnabled")) {
-                                currentUser.setNotificationsEnabled(value);
-                            } else if (preferenceKey.equals("autoPlayNextStep")) {
-                                currentUser.setAutoPlayNextStep(value);
-                            }
+                .addOnSuccessListener(aVoid -> {
+                    // Update the cached user data
+                    if (currentUser != null) {
+                        switch (preferenceKey) {
+                            case "notificationsEnabled":
+                                currentUser.setNotificationsEnabled((Boolean) value);
+                                break;
+                            case "autoPlayNextStep":
+                                currentUser.setAutoPlayNextStep((Boolean) value);
+                                break;
+                            case "defaultTimerHours":
+                                currentUser.setDefaultTimerHours((Integer) value);
+                                break;
+                            case "defaultTimerMinutes":
+                                currentUser.setDefaultTimerMinutes((Integer) value);
+                                break;
                         }
-                        callback.onSuccess();
                     }
+                    callback.onSuccess();
                 })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error updating preference", e);
-                        callback.onError(e);
-                    }
+                .addOnFailureListener(e -> {
+                    Log.w(TAG, "Error updating preference: " + preferenceKey, e);
+                    callback.onError(e);
                 });
     }
+
 
     /**
      * Update user profile information
