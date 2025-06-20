@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="380dp"
+    android:layout_height="wrap_content"
+    android:minWidth="250dp"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_dialog_background"
+    android:padding="24dp">
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Available Voice Commands"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="@color/black"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Scrollable list -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="400dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• next — go to the next step"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• previous / back — go to previous step"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• pause / stop — stop the timer and narration"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• resume / continue — resume timer and voice"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• repeat / again — repeat the current step"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• play — play or resume the recipe"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• restart — restart the recipe from beginning"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:padding="8dp"/>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Dismiss button -->
+    <Button
+        android:id="@+id/closeVoiceDialogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Close"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/orange"
+        android:layout_marginTop="20dp"/>
+</LinearLayout>
