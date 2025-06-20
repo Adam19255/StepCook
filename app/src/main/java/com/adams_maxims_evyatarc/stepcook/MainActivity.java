@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -27,8 +28,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
+import java.util.Objects;
 
-public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuItemClickListener, RecipeAdapter.OnRecipeClickListener {
+public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuItemClickListener,
+        RecipeAdapter.OnRecipeClickListener, CookingInterruptionCallback {
 
     private ImageView popupMenuButton;
     private EditText searchInput;
@@ -54,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private UIHelper uiHelper;
     private RecipeManager recipeManager;
     private User currentUser;
+    private BroadcastManager broadcastManager;
 
 
     @Override
@@ -65,6 +69,10 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
         initializeManagers();
         setupRecyclerView();
         setupClickListeners();
+
+        // Initialize broadcast manager
+        broadcastManager = BroadcastManager.getInstance(this);
+        broadcastManager.setCookingInterruptionCallback(this);
 
         // Load favorites first, then recipes
         loadFavoriteRecipesAndThenLoadRecipes();
@@ -346,11 +354,50 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     @Override
     protected void onResume() {
         super.onResume();
+        // Start listening for broadcast events
+        broadcastManager.startListening();
         // Only reload if we don't have recipes yet, otherwise just reapply filters
         if (allRecipes == null || allRecipes.isEmpty()) {
             loadRecipes();
         } else {
             applyAllFilters();
         }
+    }
+
+    // Implement CookingInterruptionCallback methods
+    @Override
+    public void onCookingInterrupted(InterruptionType type, String message) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onCallEnded() {
+        // No implementation needed
+    }
+
+    @Override
+    public void onScreenStateChanged(boolean isScreenOn) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onHeadphonesStateChanged(boolean areConnected) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onInternetStateChanged(boolean isConnected) {
+        // Handle internet state changes
+        Log.d("MainActivity", "Internet state changed: " + isConnected);
+
+        // Refresh recipes when internet comes back
+        if (isConnected && (allRecipes == null || allRecipes.isEmpty())) {
+            loadRecipes();
+        }
+    }
+
+    @Override
+    public void onPowerStateChanged(boolean isPowerConnected) {
+        // No implementation needed
     }
 }
