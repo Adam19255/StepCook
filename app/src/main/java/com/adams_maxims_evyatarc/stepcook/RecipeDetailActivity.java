@@ -20,6 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
@@ -31,7 +32,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.List;
 import java.util.Locale;
 
-public class RecipeDetailActivity extends AppCompatActivity {
+public class RecipeDetailActivity extends AppCompatActivity implements CookingInterruptionCallback {
 
     private FirebaseFirestore db;
     private UserManager userManager = UserManager.getInstance();
@@ -72,6 +73,10 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private long lastCommandTime = 0;
     private final long DUPLICATE_COMMAND_THRESHOLD_MS = 2000;
 
+    private BroadcastManager broadcastManager;
+    private boolean wasPlayingBeforeInterruption = false;
+    private boolean isPausedByInterruption = false;
+
     // Broadcast receiver for voice commands
     private BroadcastReceiver voiceCommandReceiver = new BroadcastReceiver() {
         @Override
@@ -104,6 +109,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
         initializeViews();
         setupListeners();
         initializeTextToSpeech();
+        initializeBroadcastManager();
 
         // Register broadcast receiver for voice commands
         IntentFilter filter = new IntentFilter(RecipeVoiceService.ACTION_VOICE_COMMAND);
@@ -138,6 +144,205 @@ public class RecipeDetailActivity extends AppCompatActivity {
         });
 
         loadRecipeDetails();
+    }
+
+    private void initializeBroadcastManager() {
+        broadcastManager = BroadcastManager.getInstance(this);
+        broadcastManager.setCookingInterruptionCallback(this);
+        broadcastManager.startListening();
+        Log.d("RecipeDetailActivity", "Broadcast manager initialized and listening");
+    }
+
+    @Override
+    public void onCookingInterrupted(InterruptionType type, String message) {
+        Log.i("RecipeDetailActivity", "Cooking interrupted: " + type + " - " + message);
+
+        // Save current playing state before interruption
+        wasPlayingBeforeInterruption = isPlaying || (textToSpeech != null && textToSpeech.isSpeaking());
+
+        switch (type) {
+            case INCOMING_CALL:
+                handleIncomingCallInterruption(message);
+                break;
+            case SCREEN_OFF:
+                handleScreenOffInterruption(message);
+                break;
+            case HEADPHONES_DISCONNECTED:
+                handleHeadphonesDisconnectedInterruption(message);
+                break;
+            case INTERNET_DISCONNECTED:
+                handleInternetDisconnectedInterruption(message);
+                break;
+            case BATTERY_LOW:
+                handleBatteryLowInterruption(message);
+                break;
+        }
+    }
+
+    private void handleIncomingCallInterruption(String message) {
+        // Pause current step and timer
+        pauseCurrentStep();
+        isPausedByInterruption = true;
+
+        // Show alert dialog with options
+        new AlertDialog.Builder(this)
+                .setTitle("Incoming Call")
+                .setMessage(message + "\n\nWould you like to pause your cooking session?")
+                .setPositiveButton("Pause Cooking", (dialog, which) -> {
+                    stopStep();
+                    Toast.makeText(this, "Cooking paused for call", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Continue Cooking", (dialog, which) -> {
+                    if (wasPlayingBeforeInterruption) {
+                        resumeCurrentStep();
+                    }
+                    isPausedByInterruption = false;
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    private void handleScreenOffInterruption(String message) {
+        // Show notification instead of toast when screen is off
+        showInterruptionNotification("Screen Off", message);
+
+        // Don't pause automatically - let cooking continue in background
+        // but inform user that timers are still running
+        Log.i("RecipeDetailActivity", "Screen off - cooking continues in background");
+    }
+
+    private void handleHeadphonesDisconnectedInterruption(String message) {
+        // Pause TTS and show alert
+        if (textToSpeech != null && textToSpeech.isSpeaking()) {
+            textToSpeech.stop();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Headphones Disconnected")
+                .setMessage(message + "\n\nAudio will now play through the speaker. Continue?")
+                .setPositiveButton("Continue", (dialog, which) -> {
+                    if (wasPlayingBeforeInterruption && currentRecipe != null &&
+                            currentStepIndex < currentRecipe.getSteps().size()) {
+                        // Replay current step description through speaker
+                        Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
+                        textToSpeech.speak(currentStep.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+                    }
+                })
+                .setNegativeButton("Pause", (dialog, which) -> {
+                    pauseCurrentStep();
+                    isPausedByInterruption = true;
+                })
+                .show();
+    }
+
+    private void handleInternetDisconnectedInterruption(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        showInterruptionNotification("Internet Disconnected", message);
+
+        // Cooking can continue offline, just inform user
+        Log.w("RecipeDetailActivity", "Internet disconnected - continuing offline");
+    }
+
+    private void handleBatteryLowInterruption(String message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Battery Low")
+                .setMessage(message + "\n\nRecommend connecting to power source.")
+                .setPositiveButton("Continue Cooking", (dialog, which) -> {
+                    // Continue cooking but user is warned
+                })
+                .show();
+    }
+
+    @Override
+    public void onCallEnded() {
+        Log.d("RecipeDetailActivity", "Call ended");
+
+        if (isPausedByInterruption) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Call Ended")
+                    .setMessage("Would you like to resume cooking?")
+                    .setPositiveButton("Resume", (dialog, which) -> {
+                        resumeCurrentStep();
+                        isPausedByInterruption = false;
+                        Toast.makeText(this, "Cooking resumed", Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        }
+    }
+
+    @Override
+    public void onScreenStateChanged(boolean isScreenOn) {
+        Log.d("RecipeDetailActivity", "Screen state changed: " + (isScreenOn ? "ON" : "OFF"));
+
+        if (isScreenOn && isPausedByInterruption) {
+            // Screen is back on, check if user wants to resume
+            Toast.makeText(this, "Welcome back! Tap play to resume cooking.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onHeadphonesStateChanged(boolean areConnected) {
+        Log.d("RecipeDetailActivity", "Headphones state changed: " + (areConnected ? "CONNECTED" : "DISCONNECTED"));
+
+        if (areConnected && isPausedByInterruption) {
+            Toast.makeText(this, "Headphones connected. Ready to resume audio guidance.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onInternetStateChanged(boolean isConnected) {
+        Log.d("RecipeDetailActivity", "Internet state changed: " + (isConnected ? "CONNECTED" : "DISCONNECTED"));
+
+        if (isConnected) {
+            Toast.makeText(this, "Internet reconnected. All features available.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onPowerStateChanged(boolean isPowerConnected) {
+        Log.d("RecipeDetailActivity", "Power state changed: " + (isPowerConnected ? "CONNECTED" : "DISCONNECTED"));
+
+        if (isPowerConnected && isPausedByInterruption) {
+            Toast.makeText(this, "Power connected. Safe to resume long cooking sessions.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void pauseCurrentStep() {
+        if (textToSpeech != null && textToSpeech.isSpeaking()) {
+            textToSpeech.stop();
+        }
+
+        // Don't cancel the timer, just note the remaining time
+        if (countDownTimer != null) {
+            // Timer continues running but we mark as paused for user awareness
+            Log.d("RecipeDetailActivity", "Step paused with " + remainingTimeInMillis + "ms remaining");
+        }
+    }
+
+    private void resumeCurrentStep() {
+        if (currentRecipe != null && currentStepIndex < currentRecipe.getSteps().size()) {
+            Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
+
+            // Resume TTS
+            textToSpeech.speak(currentStep.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+
+            // Resume timer if there was remaining time
+            if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
+                startInlineCountdown(remainingTimeInMillis);
+            }
+        }
+    }
+
+    private void showInterruptionNotification(String title, String message) {
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.all_cook_svg)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build();
+
+        notificationManager.notify(NOTIFICATION_ID + 1, notification);
     }
 
     private void checkAudioPermissionAndStartService() {
@@ -193,6 +398,8 @@ public class RecipeDetailActivity extends AppCompatActivity {
                 isPlaying = !isPlaying;
                 Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
             }
+            // Reset interruption state when manually playing
+            isPausedByInterruption = false;
             playStep(currentRecipe.getSteps().get(currentStepIndex));
         });
     }
@@ -411,6 +618,9 @@ public class RecipeDetailActivity extends AppCompatActivity {
 
         Log.d("VoiceService", "💻 Processing command: " + command);
 
+        // Reset interruption state when processing voice commands
+        isPausedByInterruption = false;
+
         if (command.contains("next")) {
             resetStep();
             currentStepIndex++;
@@ -492,6 +702,12 @@ public class RecipeDetailActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Stop broadcast manager
+        if (broadcastManager != null) {
+            broadcastManager.stopListening();
+            Log.d("RecipeDetailActivity", "Broadcast manager stopped");
+        }
 
         // Unregister broadcast receiver
         if (voiceCommandReceiver != null) {

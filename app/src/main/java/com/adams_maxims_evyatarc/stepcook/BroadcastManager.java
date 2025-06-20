@@ -117,7 +117,6 @@ public class BroadcastManager implements BroadcastEventListener {
     @Override
     public void onInternetConnected() {
         Log.d(TAG, "Internet connected");
-        showToast("Internet connection restored.");
         if (callback != null) {
             callback.onInternetStateChanged(true);
         }
@@ -139,7 +138,6 @@ public class BroadcastManager implements BroadcastEventListener {
     @Override
     public void onPowerConnected() {
         Log.d(TAG, "Power connected");
-        showToast("Device is now charging.");
         if (callback != null) {
             callback.onPowerStateChanged(true);
         }
@@ -168,34 +166,11 @@ public class BroadcastManager implements BroadcastEventListener {
     @Override
     public void onBatteryOkay() {
         Log.d(TAG, "Battery okay");
-        showToast("Battery level is now okay.");
     }
 
     private void showToast(String message) {
         if (context != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
         }
-    }
-
-    // Utility methods
-    public boolean isDeviceReadyForCooking() {
-        boolean batteryOk = !SystemStateUtils.isBatteryLow(context) || SystemStateUtils.isPowerConnected(context);
-        boolean displayOk = SystemStateUtils.isScreenOn(context) || SystemStateUtils.isPowerConnected(context);
-        boolean internetOk = SystemStateUtils.isInternetConnected(context);
-
-        return batteryOk && displayOk && internetOk;
-    }
-
-    public String getDeviceStatusSummary() {
-        StringBuilder summary = new StringBuilder();
-
-        summary.append("Device Status:\n");
-        summary.append("• Screen: ").append(SystemStateUtils.isScreenOn(context) ? "On" : "Off").append("\n");
-        summary.append("• Power: ").append(SystemStateUtils.isPowerConnected(context) ? "Connected" : "Disconnected").append("\n");
-        summary.append("• Battery: ").append(SystemStateUtils.getBatteryLevel(context)).append("%\n");
-        summary.append("• Headphones: ").append(SystemStateUtils.areHeadphonesConnected(context) ? "Connected" : "Disconnected").append("\n");
-        summary.append("• Internet: ").append(SystemStateUtils.isInternetConnected(context) ? "Connected" : "Disconnected");
-
-        return summary.toString();
     }
 }
