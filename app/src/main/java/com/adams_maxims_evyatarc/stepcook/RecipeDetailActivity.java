@@ -308,12 +308,19 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     }
 
     private void resumeCurrentStep() {
-        if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
-            startInlineCountdown(remainingTimeInMillis);
-            Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
-            textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
-            Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
+        if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
+            return;
         }
+        Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
+        if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
+            // Resume timer from where it left off
+            startInlineCountdown(remainingTimeInMillis);
+        }
+
+        // Replay the step description
+        textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+        isPlaying = true;
+        updatePlayButtonIcon();
     }
     private void showInterruptionNotification(String title, String message) {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -371,19 +378,47 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         });
 
         playButton.setOnClickListener(v -> {
-            if (currentRecipe == null || currentStepIndex >= currentRecipe.getSteps().size()) {
-                Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
-                currentStepIndex = 0;
+            if (currentRecipe == null) {
+                Toast.makeText(this, "Recipe not loaded", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if(!isPlaying) {
-                isPlaying = !isPlaying;
-                Toast.makeText(this, "Now playing", Toast.LENGTH_SHORT).show();
+
+            if (currentStepIndex >= currentRecipe.getSteps().size()) {
+                Toast.makeText(this, "All steps completed, restarting", Toast.LENGTH_SHORT).show();
+                currentStepIndex = 0;
+                remainingTimeInMillis = 0; // Reset timer
+                isPlaying = false;
             }
-            // Reset interruption state when manually playing
-            isPausedByInterruption = false;
-            playStep(currentRecipe.getSteps().get(currentStepIndex));
+
+            Recipe.Step currentStep = currentRecipe.getSteps().get(currentStepIndex);
+
+            if (isPlaying) {
+                // Currently playing - pause the step
+                stopStep();
+                isPlaying = false;
+                isPausedByInterruption = false;
+                Toast.makeText(this, "Paused", Toast.LENGTH_SHORT).show();
+            } else {
+                // Not playing - start/resume the step
+                isPlaying = true;
+                isPausedByInterruption = false;
+
+                Log.d("RecipeDetailActivity", "Remaining time in milis:" + remainingTimeInMillis);
+                if (remainingTimeInMillis > 0) {
+                    // Resume from where we left off
+                    resumeCurrentStep();
+                    Toast.makeText(this, "Resumed", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Start the current step from the beginning
+                    playStep(currentStep);
+                    Toast.makeText(this, "Playing step " + (currentStepIndex + 1), Toast.LENGTH_SHORT).show();
+//                    currentStepIndex++;
+                }
+            }
+
+            updatePlayButtonIcon();
         });
+
     }
 
     private void sendStepNotification(String stepText) {
@@ -400,36 +435,44 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         new Thread(() -> {
             Log.d("VoiceService", "playing step " + currentStepIndex);
             textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+
             runOnUiThread(() -> {
+                isPlaying = true;
+                updatePlayButtonIcon();
+
                 long delayMillis = step.getTimerMinutes() != null ? step.getTimerMinutes() * 60000L : 0;
                 View currentStepView = stepsContainer.findViewWithTag("step_" + currentStepIndex);
                 currentStepTimerTextView = currentStepView != null ? currentStepView.findViewById(R.id.stepTimer) : null;
-                if (delayMillis > 0 && currentStepTimerTextView != null) startInlineCountdown(delayMillis);
-                if (isAutoPlaying) {
-                    if (delayMillis > 0) {
-                        handler.postDelayed(() -> {
+
+                if (delayMillis > 0 && currentStepTimerTextView != null) {
+                    startInlineCountdown(delayMillis);
+
+                    // Timer step - increment index when timer completes
+                    handler.postDelayed(() -> {
+                        if (isPlaying) { // Only increment if still playing
                             sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                             currentStepIndex++;
-                            if (currentStepIndex < currentRecipe.getSteps().size()) {
-                                playStep(currentRecipe.getSteps().get(currentStepIndex));
-                            }
-                        }, delayMillis);
-                    } else {
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (!textToSpeech.isSpeaking()) {
+                            isPlaying = false;
+                            updatePlayButtonIcon();
+                        }
+                    }, delayMillis);
+                } else {
+                    // No timer step - increment index when TTS finishes
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!textToSpeech.isSpeaking()) {
+                                if (isPlaying) { // Only increment if still playing
                                     sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
                                     currentStepIndex++;
-                                    if (currentStepIndex < currentRecipe.getSteps().size()) {
-                                        playStep(currentRecipe.getSteps().get(currentStepIndex));
-                                    }
-                                } else {
-                                    handler.postDelayed(this, 300);
+                                    isPlaying = false;
+                                    updatePlayButtonIcon();
                                 }
+                            } else {
+                                handler.postDelayed(this, 300);
                             }
-                        }, 300);
-                    }
+                        }
+                    }, 300);
                 }
             });
         }).start();
@@ -559,6 +602,8 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         if (textToSpeech != null && textToSpeech.isSpeaking()) {
             textToSpeech.stop();
         }
+
+        updatePlayButtonIcon();
     }
 
     private void resetStep() {
@@ -574,6 +619,24 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
                     : 0;
 
             textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
+        }
+    }
+
+    private void updatePlayButtonIcon() {
+        boolean hasTimer = false;
+
+        if (currentRecipe != null &&
+                currentStepIndex >= 0 &&
+                currentStepIndex < currentRecipe.getSteps().size()) {
+            Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
+            Integer timerMinutes = step.getTimerMinutes();  // FIXED: use Integer
+            hasTimer = (timerMinutes != null && timerMinutes > 0);
+        }
+
+        if (isPlaying && hasTimer) {
+            playButton.setImageResource(R.drawable.pause_svg);
+        } else {
+            playButton.setImageResource(R.drawable.play_svg);
         }
     }
 
