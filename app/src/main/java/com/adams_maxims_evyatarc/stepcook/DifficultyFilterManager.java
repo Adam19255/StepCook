@@ -8,7 +8,9 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Class to manage difficulty filter functionality
@@ -16,11 +18,16 @@ import android.widget.Toast;
 public class DifficultyFilterManager extends FilterManager {
     private Context context;
     private String selectedDifficulty = "All"; // Default option
+    private boolean isActive = false;
+
     private final String[] DIFFICULTY_OPTIONS = {"All", "Easy", "Medium", "Hard"};
 
-    public DifficultyFilterManager(Context context, Button difficultyFilterButton) {
-        super(difficultyFilterButton, new UIHelper(context));
-        this.context = context;
+    private final MainActivity activity;
+
+    public DifficultyFilterManager(MainActivity activity, Button filterButton, UIHelper uiHelper) {
+        super(filterButton, uiHelper);
+        this.activity = activity;
+        this.context = activity;
     }
 
     @Override
@@ -31,6 +38,42 @@ public class DifficultyFilterManager extends FilterManager {
         if (filterDialog != null) {
             if (!filterDialog.isShowing()) {
                 filterDialog.show();
+
+                LinearLayout allBtn = filterDialog.findViewById(R.id.allDifficulties);
+                LinearLayout easyBtn = filterDialog.findViewById(R.id.easyDifficulty);
+                LinearLayout mediumBtn = filterDialog.findViewById(R.id.mediumDifficulty);
+                LinearLayout hardBtn = filterDialog.findViewById(R.id.hardDifficulty);
+
+                View.OnClickListener listener = v -> {
+                    if (v == allBtn) {
+                        selectedDifficulty = "All";
+                        isActive = false;
+                    } else if (v == easyBtn) {
+                        selectedDifficulty = "Easy";
+                        isActive = true;
+                    } else if (v == mediumBtn) {
+                        selectedDifficulty = "Medium";
+                        isActive = true;
+                    } else if (v == hardBtn) {
+                        selectedDifficulty = "Hard";
+                        isActive = true;
+                    }
+
+                    uiHelper.highlightSelectedOption(
+                            allBtn, easyBtn, mediumBtn, hardBtn,
+                            selectedDifficulty, DIFFICULTY_OPTIONS
+                    );
+
+                    uiHelper.changeButtonColor(isActive, filterButton);
+
+                    ((MainActivity) context).applyAllFilters(); // Apply all filters centrally
+                    filterDialog.dismiss();
+                };
+
+                allBtn.setOnClickListener(listener);
+                easyBtn.setOnClickListener(listener);
+                mediumBtn.setOnClickListener(listener);
+                hardBtn.setOnClickListener(listener);
             }
             return;
         }
@@ -68,7 +111,7 @@ public class DifficultyFilterManager extends FilterManager {
             @Override
             public void onCancel(DialogInterface dialog) {
                 // Reset button color when dialog is dismissed by clicking outside
-                uiHelper.changeButtonColor(false, filterButton);
+                uiHelper.changeButtonColor(isActive, filterButton);
             }
         });
 
@@ -83,7 +126,6 @@ public class DifficultyFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedDifficulty = DIFFICULTY_OPTIONS[0]; // "All"
                 handleDifficultySelection(allDifficulties, easyDifficulty, mediumDifficulty, hardDifficulty);
-                Toast.makeText(context, "All difficulties selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -92,7 +134,6 @@ public class DifficultyFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedDifficulty = DIFFICULTY_OPTIONS[1]; // "Easy"
                 handleDifficultySelection(allDifficulties, easyDifficulty, mediumDifficulty, hardDifficulty);
-                Toast.makeText(context, "Easy difficulty selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -101,7 +142,6 @@ public class DifficultyFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedDifficulty = DIFFICULTY_OPTIONS[2]; // "Medium"
                 handleDifficultySelection(allDifficulties, easyDifficulty, mediumDifficulty, hardDifficulty);
-                Toast.makeText(context, "Medium difficulty selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -110,7 +150,6 @@ public class DifficultyFilterManager extends FilterManager {
             public void onClick(View view) {
                 selectedDifficulty = DIFFICULTY_OPTIONS[3]; // "Hard"
                 handleDifficultySelection(allDifficulties, easyDifficulty, mediumDifficulty, hardDifficulty);
-                Toast.makeText(context, "Hard difficulty selected", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -124,15 +163,31 @@ public class DifficultyFilterManager extends FilterManager {
         uiHelper.highlightSelectedOption(allDifficulties, easyDifficulty, mediumDifficulty,
                 hardDifficulty, selectedDifficulty, DIFFICULTY_OPTIONS);
 
-        // Apply the filter
-        applyFilter(selectedDifficulty);
+        // Mark filter as active if not "All"
+        isActive = !selectedDifficulty.equals("All");
+        uiHelper.changeButtonColor(isActive, filterButton);
 
-        // Close dialog and reset button
+        // Call the central filter logic
+        ((MainActivity) context).applyAllFilters();
+
+        // Close dialog
         closeDialog();
+    }
+
+    public List<Recipe> applyFilter(List<Recipe> recipes) {
+        if (!isActive || selectedDifficulty.equals("All")) return recipes;
+
+        List<Recipe> filtered = new ArrayList<>();
+        for (Recipe recipe : recipes) {
+            if (recipe.getDifficulty().equalsIgnoreCase(selectedDifficulty)) {
+                filtered.add(recipe);
+            }
+        }
+        return filtered;
     }
 
     @Override
     public void applyFilter(String filterValue) {
-        // Implement actual filtering logic
+        // Optional: Keep calling MainActivity if needed
     }
 }
