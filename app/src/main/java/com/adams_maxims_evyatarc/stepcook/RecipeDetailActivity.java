@@ -602,7 +602,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         if (textToSpeech != null && textToSpeech.isSpeaking()) {
             textToSpeech.stop();
         }
-
+        isPlaying = false;
         updatePlayButtonIcon();
     }
 
