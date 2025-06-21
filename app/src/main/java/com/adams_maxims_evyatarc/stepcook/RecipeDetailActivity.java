@@ -52,6 +52,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     private LinearLayout stepsContainer;
     private ImageView backButton;
     private ImageView favoriteButton;
+    private ImageView deleteButton;
     private ImageView playButton;
     private TextView currentStepTimerTextView;
 
@@ -76,6 +77,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     private BroadcastManager broadcastManager;
     private boolean wasPlayingBeforeInterruption = false;
     private boolean isPausedByInterruption = false;
+    private boolean isInternetOn = false;
 
     // Broadcast receiver for voice commands
     private BroadcastReceiver voiceCommandReceiver = new BroadcastReceiver() {
@@ -91,6 +93,14 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
             }
         }
     };
+
+    // Check if current user is the recipe author
+    private boolean isCurrentUserRecipeAuthor() {
+        if (currentRecipe == null || userManager.getCurrentUserId() == null) {
+            return false;
+        }
+        return userManager.getCurrentUserId().equals(currentRecipe.getAuthorId());
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -150,6 +160,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         broadcastManager = BroadcastManager.getInstance(this);
         broadcastManager.setCookingInterruptionCallback(this);
         broadcastManager.startListening();
+        isInternetOn = SystemStateUtils.isInternetConnected(this);
         Log.d("RecipeDetailActivity", "Broadcast manager initialized and listening");
     }
 
@@ -293,9 +304,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     public void onInternetStateChanged(boolean isConnected) {
         Log.d("RecipeDetailActivity", "Internet state changed: " + (isConnected ? "CONNECTED" : "DISCONNECTED"));
 
-        if (isConnected) {
-            Toast.makeText(this, "Internet reconnected. All features available.", Toast.LENGTH_SHORT).show();
-        }
+        isInternetOn = isConnected;
     }
 
     @Override
@@ -367,6 +376,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         stepsContainer = findViewById(R.id.stepsContainer);
         backButton = findViewById(R.id.backButton);
         favoriteButton = findViewById(R.id.favoriteButton);
+        deleteButton = findViewById(R.id.deleteButton);
         playButton = findViewById(R.id.playButton);
     }
 
@@ -375,6 +385,14 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         favoriteButton.setOnClickListener(v -> {
             isActive = !isActive;
             toggleFavorite(isActive);
+        });
+
+        deleteButton.setOnClickListener(v -> {
+            if (!isCurrentUserRecipeAuthor()) {
+                Toast.makeText(this, "You can only delete your own recipes", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showDeleteConfirmationDialog();
         });
 
         playButton.setOnClickListener(v -> {
@@ -537,6 +555,13 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
                     .placeholder(R.drawable.image_placeholder).into(recipeImage);
         } else {
             recipeImage.setImageResource(R.drawable.image_placeholder);
+        }
+
+        // Show or hide delete button based on recipe ownership
+        if (isCurrentUserRecipeAuthor()) {
+            deleteButton.setVisibility(View.VISIBLE);
+        } else {
+            deleteButton.setVisibility(View.GONE);
         }
 
         displayRecipeSteps();
@@ -767,6 +792,78 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
+    }
+
+    // Method to show delete confirmation dialog
+    private void showDeleteConfirmationDialog() {
+        // Pause the recipe if it's currently playing
+        boolean wasPlayingBeforeDelete = isPlaying;
+        if (isPlaying) {
+            stopStep();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Recipe")
+                .setMessage("Are you sure you want to delete this recipe? This action cannot be undone.")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    // User confirmed deletion
+                    deleteRecipe();
+                })
+                .setNegativeButton("No", (dialog, which) -> {
+                    // User cancelled deletion, resume if it was playing before
+                    if (wasPlayingBeforeDelete) {
+                        resumeCurrentStep();
+                        Toast.makeText(this, "Continuing recipe", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setCancelable(false) // Prevent dismissing by tapping outside
+                .show();
+    }
+
+    // Method to delete the recipe
+    private void deleteRecipe() {
+        if (recipeId == null) {
+            Toast.makeText(this, "Recipe ID not found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!isInternetOn){
+            Toast.makeText(this, "Internet connection is needed to delete", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show loading state
+        Toast.makeText(this, "Deleting recipe...", Toast.LENGTH_SHORT).show();
+
+        // Delete from Firestore
+        db.collection("Recipes").document(recipeId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    Log.d("RecipeDetailActivity", "Recipe successfully deleted");
+                    Toast.makeText(this, "Recipe deleted successfully", Toast.LENGTH_SHORT).show();
+
+                    // Stop all ongoing operations
+                    stopStep();
+
+                    // Close the activity and return to previous screen
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    Log.w("RecipeDetailActivity", "Error deleting recipe", e);
+                    Toast.makeText(this, "Failed to delete recipe: " + e.getMessage(), Toast.LENGTH_LONG).show();
+
+                    // If deletion failed and recipe was playing before, offer to resume
+                    new AlertDialog.Builder(this)
+                            .setTitle("Deletion Failed")
+                            .setMessage("Would you like to continue with your recipe?")
+                            .setPositiveButton("Yes", (dialog, which) -> {
+                                resumeCurrentStep();
+                            })
+                            .setNegativeButton("No", (dialog, which) -> {
+                                // Stay paused
+                            })
+                            .show();
+                });
     }
 
     @Override

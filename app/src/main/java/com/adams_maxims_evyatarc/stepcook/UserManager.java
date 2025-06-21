@@ -5,8 +5,6 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -182,43 +180,6 @@ public class UserManager {
                 .addOnFailureListener(e -> {
                     Log.w(TAG, "Error updating preference: " + preferenceKey, e);
                     callback.onError(e);
-                });
-    }
-
-
-    /**
-     * Update user profile information
-     * @param userName The new username
-     * @param callback Callback for operation result
-     */
-    public void updateUserProfile(String userName, final UserOperationCallback callback) {
-        String userId = getCurrentUserId();
-        if (userId == null) {
-            callback.onError(new Exception("No user is logged in"));
-            return;
-        }
-
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("userName", userName);
-
-        db.collection(USERS_COLLECTION).document(userId)
-                .update(updates)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        // Update the cached user data
-                        if (currentUser != null) {
-                            currentUser.setUserName(userName);
-                        }
-                        callback.onSuccess();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error updating user profile", e);
-                        callback.onError(e);
-                    }
                 });
     }
 

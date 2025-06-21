@@ -1,6 +1,5 @@
 package com.adams_maxims_evyatarc.stepcook;
 
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.util.Log;
 import android.view.View;
@@ -24,7 +23,6 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -155,85 +153,6 @@ public class RecipeManager {
     }
 
     /**
-     * Converts Bitmap to bytes and uploads directly to Firebase Storage
-     */
-    public void saveRecipe(String title, String difficulty, int totalCookTime,
-                           LinearLayout stepsContainer, Bitmap imageBitmap,
-                           final RecipeOperationCallback callback) {
-
-        // Get current user ID and verify authentication
-        String userId = UserManager.getInstance().getCurrentUserId();
-        if (userId == null) {
-            callback.onError(new Exception("No user is logged in. Please sign in first."));
-            return;
-        }
-
-        // Extract steps from the container
-        List<Map<String, Object>> steps = extractSteps(stepsContainer);
-
-        // Create a new recipe document
-        Map<String, Object> recipeData = new HashMap<>();
-        recipeData.put("title", title);
-        recipeData.put("difficulty", difficulty);
-        recipeData.put("authorId", userId);
-        recipeData.put("totalCookTimeMinutes", totalCookTime);
-        recipeData.put("createdDate", new Timestamp(new Date()));
-        recipeData.put("steps", steps);
-
-        // Add user display name if available
-        User currentUser = UserManager.getInstance().getCurrentUser();
-        if (currentUser != null && currentUser.getUserName() != null) {
-            recipeData.put("authorName", currentUser.getUserName());
-        }
-
-        // If no image, just save the recipe data
-        if (imageBitmap == null) {
-            saveRecipeData(recipeData, callback);
-            return;
-        }
-
-        // Otherwise, upload the bitmap directly
-        String imageFileName = UUID.randomUUID().toString() + ".jpg";
-        StorageReference imageRef = storageRef.child(RECIPE_IMAGES_PATH + "/" + imageFileName);
-
-        // Convert bitmap to byte array
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        imageBitmap.compress(Bitmap.CompressFormat.JPEG, 90, baos);
-        byte[] imageData = baos.toByteArray();
-
-        // Upload byte array
-        UploadTask uploadTask = imageRef.putBytes(imageData);
-        uploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-            @Override
-            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                // Get the image download URL
-                imageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                    @Override
-                    public void onSuccess(Uri downloadUri) {
-                        // Add the image URL to recipe data
-                        recipeData.put("imageUrl", downloadUri.toString());
-
-                        // Now save the recipe with image URL
-                        saveRecipeData(recipeData, callback);
-                    }
-                }).addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Failed to get download URL", e);
-                        callback.onError(e);
-                    }
-                });
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Log.e(TAG, "Image upload failed", e);
-                callback.onError(e);
-            }
-        });
-    }
-
-    /**
      * Save recipe data to Firestore
      */
     private void saveRecipeData(Map<String, Object> recipeData, final RecipeOperationCallback callback) {
@@ -317,81 +236,6 @@ public class RecipeManager {
                             callback.onError(task.getException());
                         }
                     }
-                });
-    }
-
-    /**
-     * Get recipes by user ID
-     */
-    public void getUserRecipes(String userId, final RecipesRetrievalCallback callback) {
-        db.collection(RECIPES_COLLECTION)
-                .whereEqualTo("authorId", userId)
-                .orderBy("createdDate", Query.Direction.DESCENDING)
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            List<Recipe> recipes = new ArrayList<>();
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                Recipe recipe = document.toObject(Recipe.class);
-                                recipe.setId(document.getId());
-                                recipes.add(recipe);
-                            }
-                            callback.onRecipesLoaded(recipes);
-                        } else {
-                            Log.e(TAG, "Error getting user recipes", task.getException());
-                            callback.onError(task.getException());
-                        }
-                    }
-                });
-    }
-
-    /**
-     * Filter recipes by difficulty
-     */
-    public void getRecipesByDifficulty(String difficulty, final RecipesRetrievalCallback callback) {
-        db.collection(RECIPES_COLLECTION)
-                .whereEqualTo("difficulty", difficulty)
-                .orderBy("createdDate", Query.Direction.DESCENDING)
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            List<Recipe> recipes = new ArrayList<>();
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                Recipe recipe = document.toObject(Recipe.class);
-                                recipe.setId(document.getId());
-                                recipes.add(recipe);
-                            }
-                            callback.onRecipesLoaded(recipes);
-                        } else {
-                            Log.e(TAG, "Error getting recipes by difficulty", task.getException());
-                            callback.onError(task.getException());
-                        }
-                    }
-                });
-    }
-
-    /**
-     * Get a single recipe by ID
-     */
-    public void getRecipeById(String recipeId, final RecipeOperationCallback callback) {
-        db.collection(RECIPES_COLLECTION).document(recipeId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        Recipe recipe = documentSnapshot.toObject(Recipe.class);
-                        recipe.setId(documentSnapshot.getId());
-                        callback.onSuccess(documentSnapshot.getId());
-                    } else {
-                        callback.onError(new Exception("Recipe not found"));
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error getting recipe", e);
-                    callback.onError(e);
                 });
     }
 }
