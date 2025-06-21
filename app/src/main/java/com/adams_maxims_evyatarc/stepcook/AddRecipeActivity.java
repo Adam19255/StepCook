@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -21,7 +22,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.OnTimeSetListener, DialogManager.ImageDeleteListener {
+public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.OnTimeSetListener,
+        DialogManager.ImageDeleteListener, CookingInterruptionCallback {
 
     private ImageView backButton;
     private LinearLayout stepsContainer;
@@ -39,11 +41,18 @@ public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.
     private DialogManager dialogManager;
     private UIHelper uiHelper;
     private RecipeManager recipeManager;
+    private BroadcastManager broadcastManager;
+    private boolean isInternetOn = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_recipe);
+
+        broadcastManager = BroadcastManager.getInstance(this);
+        broadcastManager.setCookingInterruptionCallback(this);
+        broadcastManager.startListening();
+        isInternetOn = SystemStateUtils.isInternetConnected(this);
 
         uiHelper = new UIHelper(this);
         dialogManager = new DialogManager(this);
@@ -76,6 +85,38 @@ public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.
         addNewStep();
 
         uiHelper.updateTotalCookTime(stepsContainer, cookTimeText);
+    }
+
+    @Override
+    public void onCookingInterrupted(InterruptionType type, String message) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onCallEnded() {
+        // No implementation needed
+    }
+
+    @Override
+    public void onScreenStateChanged(boolean isScreenOn) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onHeadphonesStateChanged(boolean areConnected) {
+        // No implementation needed
+    }
+
+    @Override
+    public void onInternetStateChanged(boolean isConnected) {
+        // Handle internet state changes
+        Log.d("AddRecipeActivity", "Internet state changed: " + isConnected);
+        isInternetOn = isConnected;
+    }
+
+    @Override
+    public void onPowerStateChanged(boolean isPowerConnected) {
+        // No implementation needed
     }
 
     @Override
@@ -202,6 +243,11 @@ public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.
 
         // Check if we have at least one step
         if (!uiHelper.validateSteps(stepsContainer)) {
+            return;
+        }
+
+        if (!isInternetOn) {
+            Toast.makeText(this, "Internet connection is needed to save", Toast.LENGTH_SHORT).show();
             return;
         }
 
