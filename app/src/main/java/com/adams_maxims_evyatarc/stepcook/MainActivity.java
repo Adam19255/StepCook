@@ -1,8 +1,6 @@
 package com.adams_maxims_evyatarc.stepcook;
 
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
@@ -26,13 +24,13 @@ import com.google.firebase.auth.FirebaseAuth;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import java.util.List;
-import java.util.Objects;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
 public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuItemClickListener,
         RecipeAdapter.OnRecipeClickListener, CookingInterruptionCallback {
 
+    private static final int ADD_RECIPE_REQUEST_CODE = 1001;
     private ImageView popupMenuButton;
     private EditText searchInput;
     private Button difficultyFilter;
@@ -59,6 +57,26 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     private User currentUser;
     private BroadcastManager broadcastManager;
 
+
+    private ActivityResultLauncher<Intent> addRecipeLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    // Recipe was added successfully, reload the list
+                    loadRecipes();
+                }
+            }
+    );
+
+    private ActivityResultLauncher<Intent> recipeDetailLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    // Recipe was deleted successfully, reload the list
+                    loadRecipes();
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,8 +143,10 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
 
     private void setupClickListeners() {
         popupMenuButton.setOnClickListener(this::showPopupMenu);
-        addRecipeButton.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, AddRecipeActivity.class)));
+        addRecipeButton.setOnClickListener(v ->{
+                    Intent intent = new Intent(MainActivity.this, AddRecipeActivity.class);
+                    addRecipeLauncher.launch(intent);
+                });
         difficultyFilter.setOnClickListener(v -> difficultyFilterManager.showFilterDialog());
         favoriteFilter.setOnClickListener(v -> favoriteFilterManager.toggleFilter());
         cookTimeFilter.setOnClickListener(v -> cookTimeFilterManager.showFilterDialog());
@@ -311,7 +331,7 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     public void onRecipeClick(Recipe recipe) {
         Intent intent = new Intent(MainActivity.this, RecipeDetailActivity.class);
         intent.putExtra("RECIPE_ID", recipe.getId());
-        startActivity(intent);
+        recipeDetailLauncher.launch(intent);
     }
 
     @Override
@@ -350,20 +370,6 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
                 });
     }
 
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Start listening for broadcast events
-        broadcastManager.startListening();
-        // Only reload if we don't have recipes yet, otherwise just reapply filters
-        if (allRecipes == null || allRecipes.isEmpty()) {
-            loadRecipes();
-        } else {
-            applyAllFilters();
-        }
-    }
-
     // Implement CookingInterruptionCallback methods
     @Override
     public void onCookingInterrupted(InterruptionType type, String message) {
@@ -399,5 +405,18 @@ public class MainActivity extends AppCompatActivity implements PopupMenu.OnMenuI
     @Override
     public void onPowerStateChanged(boolean isPowerConnected) {
         // No implementation needed
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Start listening for broadcast events
+        broadcastManager.startListening();
+        // Only reload if we don't have recipes yet, otherwise just reapply filters
+        if (allRecipes == null || allRecipes.isEmpty()) {
+            loadRecipes();
+        } else {
+            applyAllFilters();
+        }
     }
 }

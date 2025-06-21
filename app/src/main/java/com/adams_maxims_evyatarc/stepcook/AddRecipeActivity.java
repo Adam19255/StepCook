@@ -281,6 +281,9 @@ public class AddRecipeActivity extends AppCompatActivity implements TimerDialog.
                             Toast.makeText(AddRecipeActivity.this,
                                     "Recipe saved successfully!", Toast.LENGTH_SHORT).show();
 
+                            // Set result to indicate recipe was added successfully
+                            setResult(RESULT_OK);
+
                             // Return to previous screen
                             finish();
                         });

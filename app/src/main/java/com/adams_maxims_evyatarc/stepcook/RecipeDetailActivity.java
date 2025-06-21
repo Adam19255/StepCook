@@ -845,6 +845,9 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
                     // Stop all ongoing operations
                     stopStep();
 
+                    // Set result to indicate successful deletion
+                    setResult(RESULT_OK);
+
                     // Close the activity and return to previous screen
                     finish();
                 })
