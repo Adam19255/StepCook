@@ -1,6 +1,9 @@
 package com.adams_maxims_evyatarc.stepcook;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -12,6 +15,7 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.util.Log;
 
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
@@ -23,11 +27,36 @@ public class RecipeVoiceService extends Service {
     public static final String EXTRA_COMMAND = "command";
 
     private SpeechRecognizer speechRecognizer;
-    private Handler handler = new Handler();
+    private final Handler handler = new Handler();
     private boolean isListening = false;
     private boolean shouldKeepListening = true;
 
     private long speechStartTime = 0;
+
+    private static final String CHANNEL_ID = "voice_service_channel";
+    private static final int NOTIFICATION_ID = 101;
+
+    private void createNotificationChannel() {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Voice Recognition Service",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(serviceChannel);
+            }
+    }
+
+    private Notification getForegroundNotification() {
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("StepCook Voice Assistant")
+                .setContentText("Listening for your voice commands...")
+                .setSmallIcon(R.drawable.all_cook_svg) // use your own icon here
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .build();
+    }
     private final RecognitionListener recognitionListener = new RecognitionListener() {
         @Override
         public void onReadyForSpeech(Bundle params) {
@@ -128,6 +157,10 @@ public class RecipeVoiceService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Voice service started");
         shouldKeepListening = true;
+
+
+        createNotificationChannel(); // Ensure the channel exists
+        startForeground(NOTIFICATION_ID, getForegroundNotification());
 
         if (!isListening) {
             startSpeechRecognition();

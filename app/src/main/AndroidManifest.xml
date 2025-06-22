@@ -43,6 +43,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:allowBackup="true"
@@ -87,7 +89,8 @@
         <service
             android:name=".RecipeVoiceService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>
