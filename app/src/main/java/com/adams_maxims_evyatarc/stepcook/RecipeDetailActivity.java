@@ -527,6 +527,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     }
 
     private void sendStepNotification(String stepText) {
+        if (!(userManager.getCurrentUser()).isNotificationsEnabled()) return;
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.all_cook_svg)
                 .setContentTitle("Step Complete!")
