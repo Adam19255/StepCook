@@ -200,10 +200,6 @@ public class TimerForegroundService extends Service {
         return remainingTimeInMillis;
     }
 
-    public boolean isTimerRunning() {
-        return isTimerRunning;
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
