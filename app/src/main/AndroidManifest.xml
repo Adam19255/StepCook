@@ -31,6 +31,8 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
@@ -88,6 +90,15 @@
             android:name=".RecipeVoiceService"
             android:enabled="true"
             android:exported="false" />
+        <service
+            android:name=".TimerForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Recipe timer that needs to run in background" />
+        </service>
     </application>
 
 </manifest>

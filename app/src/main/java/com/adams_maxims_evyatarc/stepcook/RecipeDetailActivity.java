@@ -1,5 +1,9 @@
 package com.adams_maxims_evyatarc.stepcook;
 
+import android.content.ComponentName;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+
 import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -79,6 +83,9 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     private boolean isPausedByInterruption = false;
     private boolean isInternetOn = false;
 
+    private TimerForegroundService timerService;
+    private boolean isTimerServiceBound = false;
+
     // Broadcast receiver for voice commands
     private BroadcastReceiver voiceCommandReceiver = new BroadcastReceiver() {
         @Override
@@ -102,6 +109,81 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         return userManager.getCurrentUserId().equals(currentRecipe.getAuthorId());
     }
 
+    // Service connection for binding to TimerForegroundService
+    private ServiceConnection timerServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            TimerForegroundService.TimerBinder binder = (TimerForegroundService.TimerBinder) service;
+            timerService = binder.getService();
+            isTimerServiceBound = true;
+
+            // Set up timer callback
+            timerService.setTimerCallback(new TimerForegroundService.TimerCallback() {
+                @Override
+                public void onTimerTick(long remainingMillis) {
+                    runOnUiThread(() -> {
+                        remainingTimeInMillis = remainingMillis;
+                        updateTimerDisplay(remainingMillis);
+                    });
+                }
+
+                @Override
+                public void onTimerFinished() {
+                    runOnUiThread(() -> {
+                        remainingTimeInMillis = 0;
+                        if (currentStepTimerTextView != null) {
+                            currentStepTimerTextView.setText("");
+                        }
+
+                        // Auto-advance to next step if playing
+                        if (isPlaying) {
+                            sendStepNotification("Step " + (currentStepIndex + 1) + " completed. Ready for next!");
+                            currentStepIndex++;
+                            isPlaying = false;
+                            updatePlayButtonIcon();
+                        }
+                    });
+                }
+            });
+
+            Log.d("RecipeDetailActivity", "Timer service connected");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            isTimerServiceBound = false;
+            timerService = null;
+            Log.d("RecipeDetailActivity", "Timer service disconnected");
+        }
+    };
+
+    // Method to update timer display
+    private void updateTimerDisplay(long millisUntilFinished) {
+        long minutes = millisUntilFinished / 60000;
+        long seconds = (millisUntilFinished / 1000) % 60;
+        if (currentStepTimerTextView != null) {
+            currentStepTimerTextView.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds));
+        }
+    }
+
+    // Method to start timer service
+    private void startTimerService() {
+        Intent serviceIntent = new Intent(this, TimerForegroundService.class);
+        startForegroundService(serviceIntent); // Use startForegroundService for API 26+
+        bindService(serviceIntent, timerServiceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    // Method to stop timer service
+    private void stopTimerService() {
+        if (isTimerServiceBound) {
+            unbindService(timerServiceConnection);
+            isTimerServiceBound = false;
+        }
+
+        Intent serviceIntent = new Intent(this, TimerForegroundService.class);
+        stopService(serviceIntent);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,6 +202,7 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
         setupListeners();
         initializeTextToSpeech();
         initializeBroadcastManager();
+        startTimerService();
 
         // Register broadcast receiver for voice commands
         IntentFilter filter = new IntentFilter(RecipeVoiceService.ACTION_VOICE_COMMAND);
@@ -321,8 +404,12 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
             return;
         }
         Recipe.Step step = currentRecipe.getSteps().get(currentStepIndex);
-        if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
-            // Resume timer from where it left off
+
+        // Resume timer from service if available
+        if (isTimerServiceBound && timerService != null && timerService.getRemainingTime() > 0) {
+            timerService.resumeTimer();
+        } else if (remainingTimeInMillis > 0 && currentStepTimerTextView != null) {
+            // Fallback to local timer
             startInlineCountdown(remainingTimeInMillis);
         }
 
@@ -499,24 +586,20 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     private void startInlineCountdown(long millis) {
         remainingTimeInMillis = millis;
 
-        if (countDownTimer != null) countDownTimer.cancel();
+        // Cancel any existing local countdown timer
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
 
-        countDownTimer = new CountDownTimer(millis, 1000) {
-            public void onTick(long millisUntilFinished) {
-                remainingTimeInMillis = millisUntilFinished;
-                long minutes = millisUntilFinished / 60000;
-                long seconds = (millisUntilFinished / 1000) % 60;
-                if (currentStepTimerTextView != null) {
-                    currentStepTimerTextView.setText(String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds));
-                }
+        // Use the foreground service for the timer
+        if (isTimerServiceBound && timerService != null) {
+            String stepDesc = "";
+            if (currentRecipe != null && currentStepIndex >= 0 && currentStepIndex < currentRecipe.getSteps().size()) {
+                stepDesc = currentRecipe.getSteps().get(currentStepIndex).getDescription();
             }
-
-            public void onFinish() {
-                remainingTimeInMillis = 0;
-                if (currentStepTimerTextView != null) currentStepTimerTextView.setText("");
-            }
-        };
-        countDownTimer.start();
+            timerService.startTimer(millis, stepDesc, currentStepIndex + 1);
+        }
     }
 
     private void loadRecipeDetails() {
@@ -619,6 +702,12 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     }
 
     private void stopStep() {
+        // Stop foreground service timer
+        if (isTimerServiceBound && timerService != null) {
+            timerService.pauseTimer();
+        }
+
+        // Stop local countdown timer (fallback)
         if (countDownTimer != null) {
             countDownTimer.cancel();
             countDownTimer = null;
@@ -642,6 +731,11 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
             remainingTimeInMillis = step.getTimerMinutes() != null
                     ? step.getTimerMinutes() * 60L * 1000L
                     : 0;
+
+            // Stop timer service
+            if (isTimerServiceBound && timerService != null) {
+                timerService.stopTimer();
+            }
 
             textToSpeech.speak(step.getDescription(), TextToSpeech.QUEUE_FLUSH, null, null);
         }
@@ -765,6 +859,9 @@ public class RecipeDetailActivity extends AppCompatActivity implements CookingIn
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Stop timer service
+        stopTimerService();
 
         // Stop broadcast manager
         if (broadcastManager != null) {
